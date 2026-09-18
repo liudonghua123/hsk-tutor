@@ -23,6 +23,9 @@ load_dotenv()
 # Jinrishici API token
 JINRISHICI_TOKEN = os.getenv("JINRISHICI_TOKEN", "")
 
+# Server port
+PORT = int(os.getenv("PORT", 8000))
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -388,4 +391,4 @@ async def get_audio_url(pinyin: str):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=PORT, reload=True)
