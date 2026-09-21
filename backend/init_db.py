@@ -15,11 +15,15 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from database import engine, SessionLocal, Base
 from models import Hanzi, HandwrittenHanzi, Grammar, HanziLevel, HandwrittenLevel
 
+# Data directory (relative to this script)
+DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
+
 
 def load_hanzi_data():
     """Load hanzi data from JSON files."""
-    base_path = r"C:\Users\admin\code\other\HSK-3.0\New HSK (2025)"
-    word_path = r"C:\Users\admin\code\other\chinese-xinhua\data\word.json"
+    word_path = os.path.join(DATA_DIR, 'word.json')
+    hanzi_path = os.path.join(DATA_DIR, 'hsk_all_hanzi.json')
+    handwritten_path = os.path.join(DATA_DIR, 'hsk_all_handwritten.json')
 
     # Load word definitions
     with open(word_path, 'r', encoding='utf-8') as f:
@@ -29,11 +33,11 @@ def load_hanzi_data():
     word_lookup = {item['word']: item for item in word_data}
 
     # Load HSK hanzi levels
-    with open(os.path.join(base_path, 'hsk_all_hanzi.json'), 'r', encoding='utf-8') as f:
+    with open(hanzi_path, 'r', encoding='utf-8') as f:
         hanzi_levels = json.load(f)
 
     # Load HSK handwritten levels
-    with open(os.path.join(base_path, 'hsk_all_handwritten.json'), 'r', encoding='utf-8') as f:
+    with open(handwritten_path, 'r', encoding='utf-8') as f:
         handwritten_levels = json.load(f)
 
     return hanzi_levels, handwritten_levels, word_lookup
@@ -41,9 +45,9 @@ def load_hanzi_data():
 
 def load_grammar_data():
     """Load grammar data from JSON file."""
-    base_path = r"C:\Users\admin\code\other\HSK-3.0\New HSK (2025)"
+    grammar_path = os.path.join(DATA_DIR, 'hsk_all_grammar.json')
 
-    with open(os.path.join(base_path, 'hsk_all_grammar.json'), 'r', encoding='utf-8') as f:
+    with open(grammar_path, 'r', encoding='utf-8') as f:
         grammar_levels = json.load(f)
 
     return grammar_levels
