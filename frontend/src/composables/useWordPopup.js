@@ -14,7 +14,7 @@ export function useWordPopup() {
     popupTitle.value = text
     popupContent.value = content
     popupTranslation.value = ''
-    popupLoading.value = !content
+    popupLoading.value = true
 
     // Get position from event
     const clientX = event.clientX ?? event.touches?.[0]?.clientX ?? event.pageX
@@ -25,6 +25,13 @@ export function useWordPopup() {
 
     popupPosition.value = { x: Math.max(10, x), y: Math.max(10, y) }
     showPopup.value = true
+
+    // Auto-play TTS and load explanation
+    if (text) {
+      playTTS(text)
+      loadExplanation(text)
+      translateText(text)
+    }
   }
 
   // Fetch explanation from API
@@ -79,15 +86,21 @@ export function useWordPopup() {
     showPopup.value = false
   }
 
-  // Handle click outside
+  // Handle click outside - use setTimeout to allow event to propagate to popup first
+  let clickTimeout = null
   function handleClickOutside(event) {
-    if (popupRef.value && !popupRef.value.contains(event.target)) {
-      // Check if click was on a clickable word element
-      const target = event.target
-      if (!target.closest('.word-item') && !target.closest('.idiom-item') && !target.closest('.xhy-item') && !target.closest('.grammar-clickable')) {
-        showPopup.value = false
+    // Use setTimeout to ensure the click event has propagated
+    if (clickTimeout) clearTimeout(clickTimeout)
+    clickTimeout = setTimeout(() => {
+      if (!showPopup.value) return
+      const popupEl = document.querySelector('.fixed.z-\\[9999\\]')
+      if (popupEl && !popupEl.contains(event.target)) {
+        const target = event.target
+        if (!target.closest('.word-item') && !target.closest('.idiom-item') && !target.closest('.xhy-item') && !target.closest('.grammar-clickable')) {
+          showPopup.value = false
+        }
       }
-    }
+    }, 10)
   }
 
   // Handle escape key

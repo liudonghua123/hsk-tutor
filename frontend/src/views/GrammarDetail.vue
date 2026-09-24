@@ -86,15 +86,27 @@
             <span class="badge badge-primary">{{ grammarData.level || level.toUpperCase() }}</span>
             <span class="badge badge-secondary">{{ grammarData.category }}</span>
           </div>
-          <button
-            @click="toggleFavorite"
-            class="p-2 rounded-full hover:bg-red-50 transition-colors"
-            :class="isFavorited ? 'text-red-500 bg-red-50' : 'text-gray-400 hover:text-red-500'"
-          >
-            <svg class="w-6 h-6" :fill="isFavorited ? 'currentColor' : 'none'" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-            </svg>
-          </button>
+          <div class="flex items-center gap-2">
+            <button
+              @click="refreshExplanation"
+              :disabled="refreshing"
+              class="p-2 rounded-full hover:bg-gray-100 transition-colors"
+              title="重新生成"
+            >
+              <svg class="w-6 h-6 text-gray-400 hover:text-gray-600" :class="{ 'animate-spin': refreshing }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </button>
+            <button
+              @click="toggleFavorite"
+              class="p-2 rounded-full hover:bg-red-50 transition-colors"
+              :class="isFavorited ? 'text-red-500 bg-red-50' : 'text-gray-400 hover:text-red-500'"
+            >
+              <svg class="w-6 h-6" :fill="isFavorited ? 'currentColor' : 'none'" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         <h1 class="text-3xl font-bold text-gray-800 mb-3">{{ grammarData.grammar_point }}</h1>
@@ -225,24 +237,6 @@
             {{ rp }}
           </span>
         </div>
-      </div>
-
-      <!-- Refresh Button -->
-      <div class="text-center">
-        <button
-          @click="refreshExplanation"
-          :disabled="refreshing"
-          class="px-6 py-3 bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 text-white rounded-xl font-medium shadow-md hover:shadow-lg transition-all disabled:opacity-50"
-        >
-          <span v-if="refreshing" class="flex items-center gap-2">
-            <svg class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            重新生成...
-          </span>
-          <span v-else>🔄 重新生成解析</span>
-        </button>
       </div>
     </div>
 
@@ -415,7 +409,112 @@ async function fetchExplanation() {
 
 async function refreshExplanation() {
   refreshing.value = true
-  await fetchExplanation()
+  await fetchExplanationWithRefresh()
+}
+
+async function fetchExplanationWithRefresh() {
+  if (!grammarItem.value) return
+
+  loading.value = true
+  error.value = ''
+  grammarData.value = null
+
+  // Build grammar content object
+  const content = JSON.stringify({
+    "类别": grammarItem.value.category,
+    "类别名称": grammarItem.value.category_name,
+    "细目": grammarItem.value.detail || '',
+    "语法内容": grammarItem.value.content
+  })
+
+  const prompt = `你是一位资深 HSK 汉语语法教师。请根据以下语法点，为 HSK 学习者生成一份结构化学习卡片。
+
+【语法点】
+{content}
+
+【输出要求】
+严格输出 JSON，不要任何额外文字、markdown 代码块标记或解释。字段如下：
+
+{
+  "grammar_point": "语法内容原文，如'小—、第—'",
+  "category": "类别名称，如'前缀'",
+  "level": "建议HSK等级，取值HSK1-6",
+  "definition": "一句话定义，控制在50字以内，语言通俗",
+  "structure": [
+    "结构公式1，用+连接，如'小 + 名词'",
+    "结构公式2"
+  ],
+  "rules": [
+    {
+      "title": "规则小标题",
+      "desc": "规则说明，80字以内，避免术语堆砌",
+      "example": "配套短句，含拼音和英文翻译"
+    }
+  ],
+  "examples": [
+    {
+      "cn": "中文例句",
+      "pinyin": "带声调拼音",
+      "en": "英文翻译"
+    }
+  ],
+  "common_mistakes": [
+    {
+      "wrong": "错误表达",
+      "right": "正确表达",
+      "reason": "错误原因，40字以内"
+    }
+  ],
+  "practice": [
+    {
+      "type": "填空|改错|造句|选择",
+      "question": "题目描述",
+      "answer": "参考答案"
+    }
+  ],
+  "related_points": ["关联语法点1", "关联语法点2"]
+}
+
+【约束】
+- rules 至少 2 条，不超过 4 条
+- examples 至少 3 条，覆盖不同结构
+- common_mistakes 至少 1 条，不超过 3 条
+- practice 至少 2 题
+- 所有例句必须符合 HSK 对应等级词汇范围
+- 拼音使用带声调符号的标准拼音
+- 不要输出 JSON 以外的任何内容`
+
+  try {
+    const response = await fetch('https://omni-gen.app.ynu.edu.cn/api/v1/explain', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        content: content,
+        prompt: prompt,
+        refresh: true
+      })
+    })
+
+    const result = await response.json()
+
+    if (result.success && result.explained_text) {
+      // Parse the JSON string from explained_text
+      const parsed = typeof result.explained_text === 'string'
+        ? JSON.parse(result.explained_text)
+        : result.explained_text
+      grammarData.value = parsed
+    } else {
+      error.value = '生成语法解析失败，请重试'
+    }
+  } catch (e) {
+    console.error('Explain error:', e)
+    error.value = '网络错误，请检查网络连接'
+  } finally {
+    loading.value = false
+    refreshing.value = false
+  }
 }
 
 async function fetchGrammarItem() {

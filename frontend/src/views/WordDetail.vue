@@ -362,34 +362,21 @@
       @translate="(text) => { translateText(text); loadExplanation(text) }"
     />
 
+    <!-- Selection Word Popup (for selected text) -->
+    <WordPopup
+      :visible="showSelectionPopup"
+      :title="selectedText"
+      :content="selectionExplanation"
+      :translation="selectionTranslation"
+      :loading="selectionLoading"
+      :position="selectionPosition"
+      @close="showSelectionPopup = false"
+      @play-tts="playTTS"
+      @translate="(text) => { translateSelectedText(); loadSelectionExplanation() }"
+    />
+
     <!-- Confetti Container -->
     <div ref="confettiRef" class="fixed inset-0 pointer-events-none z-50"></div>
-
-    <!-- Selection Popup -->
-    <div
-      v-if="showSelectionPopup"
-      ref="selectionPopupRef"
-      class="fixed bg-white rounded-xl shadow-2xl border border-gray-200 p-3 z-50 flex items-center gap-2 selection-popup"
-      :style="{ left: selectionPosition.x + 'px', top: selectionPosition.y + 'px' }"
-    >
-      <button @click="playTTS(selectedText)" class="flex items-center gap-1.5 px-3 py-1.5 bg-primary-50 hover:bg-primary-100 text-primary-700 text-sm rounded-full transition-colors">
-        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
-        <span>TTS</span>
-      </button>
-      <button @click="translateSelectedText" class="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 text-sm rounded-full transition-colors">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" /></svg>
-        <span>翻译</span>
-      </button>
-    </div>
-
-    <!-- Selection Translation Popup -->
-    <div
-      v-if="showSelectionTranslation"
-      class="fixed bg-purple-50 rounded-xl border border-purple-200 p-3 z-50 max-w-sm"
-      :style="{ left: selectionPosition.x + 'px', top: (selectionPosition.y + 40) + 'px' }"
-    >
-      <p class="text-purple-700 text-sm">{{ selectionTranslation }}</p>
-    </div>
 
     <!-- Practice Dialog -->
     <Transition name="modal">
@@ -401,11 +388,18 @@
               <h3 class="text-lg font-bold text-gray-800">练习 / Practice</h3>
               <p class="text-sm text-gray-500">{{ currentQuestionIndex + 1 }} / {{ practiceQuestions.length }}</p>
             </div>
-            <button @click="closePracticeDialog" class="p-2 hover:bg-gray-100 rounded-full">
-              <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+            <div class="flex items-center gap-2">
+              <button @click="regeneratePractice" :disabled="practiceLoading" class="p-2 hover:bg-gray-100 rounded-full" title="重新生成">
+                <svg class="w-5 h-5 text-gray-600" :class="{ 'animate-spin': practiceLoading }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </button>
+              <button @click="closePracticeDialog" class="p-2 hover:bg-gray-100 rounded-full">
+                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
           </div>
 
           <!-- Loading state -->
@@ -554,9 +548,10 @@ const modalTranslation = ref('')
 
 // Selection popup state
 const showSelectionPopup = ref(false)
-const showSelectionTranslation = ref(false)
 const selectedText = ref('')
 const selectionTranslation = ref('')
+const selectionExplanation = ref('')
+const selectionLoading = ref(false)
 const selectionPosition = ref({ x: 0, y: 0 })
 const selectionPopupRef = ref(null)
 
@@ -643,7 +638,6 @@ function formatLevel(level) {
 async function translateSelectedText() {
   if (!selectedText.value) return
   selectionTranslation.value = '翻译中...'
-  showSelectionTranslation.value = true
   try {
     const response = await fetch('https://omni-gen.app.ynu.edu.cn/api/v1/translate', {
       method: 'POST',
@@ -662,6 +656,22 @@ async function translateSelectedText() {
   }
 }
 
+// Load explanation for selected text
+async function loadSelectionExplanation() {
+  if (!selectedText.value) return
+  selectionLoading.value = true
+  selectionExplanation.value = ''
+  try {
+    const response = await fetch(`https://omni-gen.app.ynu.edu.cn/explain/${encodeURIComponent(selectedText.value)}`)
+    selectionExplanation.value = await response.text() || '暂无释义'
+  } catch (e) {
+    selectionExplanation.value = '获取释义失败'
+    console.error('Explain error:', e)
+  } finally {
+    selectionLoading.value = false
+  }
+}
+
 // Handle text selection in explanation area
 function handleTextSelection() {
   const selection = window.getSelection()
@@ -676,22 +686,19 @@ function handleTextSelection() {
       y: rect.top - 45
     }
     showSelectionPopup.value = true
-    showSelectionTranslation.value = false
+    // Auto TTS, translate and load explanation
+    playTTS(text)
+    translateSelectedText()
+    loadSelectionExplanation()
   } else {
     showSelectionPopup.value = false
-    showSelectionTranslation.value = false
   }
 }
 
 // Close selection popup when clicking outside
 function handleSelectionClickOutside(event) {
   if (selectionPopupRef.value && !selectionPopupRef.value.contains(event.target)) {
-    // Check if click was on the translation popup
-    const translationPopup = document.querySelector('.selection-translation-popup')
-    if (translationPopup && translationPopup.contains(event.target)) return
-
     showSelectionPopup.value = false
-    showSelectionTranslation.value = false
   }
 }
 
@@ -754,6 +761,57 @@ async function generatePractice() {
         topic: topic,
         count: 5,
         types: ['single_choice'],
+        prompt: `你是一个专业的HSK习题生成专家。请根据以下主题生成习题。\n\n主题：{topic}\n题目数量：{count}\n题目类型：{types}\n\n请严格按照以下JSON格式返回，不要包含任何其他内容：\n[\n  {{\n    \"title\": \"题干内容\",\n    \"type\": \"single_choice|multiple_choice|true_false\",\n    \"options\": [\"A. 选项1\", \"B. 选项2\", \"C. 选项3\", \"D. 选项4\"],\n    \"answer\": [\"A\"],\n    \"analysis\": \"题目解析\"\n  }}\n]`
+      })
+    })
+
+    const result = await response.json()
+
+    if (result.success && result.questions && result.questions.length > 0) {
+      practiceQuestions.value = result.questions
+      practiceLoading.value = false
+    } else {
+      practiceError.value = '生成练习题失败，请重试'
+      practiceLoading.value = false
+    }
+  } catch (e) {
+    console.error('Practice generation error:', e)
+    practiceError.value = '网络错误，请检查网络连接'
+    practiceLoading.value = false
+  }
+}
+
+function regeneratePractice() {
+  practiceQuestions.value = []
+  currentQuestionIndex.value = 0
+  selectedAnswer.value = null
+  answered.value = false
+  correctCount.value = 0
+  wrongCount.value = 0
+  practiceError.value = ''
+  generatePracticeWithRefresh()
+}
+
+async function generatePracticeWithRefresh() {
+  if (!hanzi.value) return
+
+  practiceLoading.value = true
+  practiceError.value = ''
+  practiceQuestions.value = []
+
+  const topic = generatePracticeTopic()
+
+  try {
+    const response = await fetch('https://omni-gen.app.ynu.edu.cn/api/v1/practise', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        topic: topic,
+        count: 5,
+        types: ['single_choice'],
+        refresh: true,
         prompt: `你是一个专业的HSK习题生成专家。请根据以下主题生成习题。\n\n主题：{topic}\n题目数量：{count}\n题目类型：{types}\n\n请严格按照以下JSON格式返回，不要包含任何其他内容：\n[\n  {{\n    \"title\": \"题干内容\",\n    \"type\": \"single_choice|multiple_choice|true_false\",\n    \"options\": [\"A. 选项1\", \"B. 选项2\", \"C. 选项3\", \"D. 选项4\"],\n    \"answer\": [\"A\"],\n    \"analysis\": \"题目解析\"\n  }}\n]`
       })
     })
