@@ -227,7 +227,6 @@
                 :key="w"
                 class="word-item px-3 py-1.5 bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 text-amber-700 text-sm rounded-full cursor-pointer transition-colors"
                 @click="showWordPopup(w, $event)"
-                @mouseenter="showWordPopup(w, $event)"
               >
                 {{ w }}
               </span>
@@ -254,7 +253,6 @@
                 :key="item"
                 class="idiom-item px-3 py-1.5 bg-gradient-to-r from-indigo-50 to-purple-50 hover:from-indigo-100 hover:to-purple-100 text-indigo-700 text-sm rounded-full cursor-pointer transition-colors"
                 @click="showIdiomPopup(item, $event)"
-                @mouseenter="showIdiomPopup(item, $event)"
               >
                 {{ item }}
               </span>
@@ -281,7 +279,6 @@
                 :key="item"
                 class="xhy-item p-2.5 bg-gradient-to-r from-cyan-50 to-blue-50 hover:from-cyan-100 hover:to-blue-100 rounded-lg cursor-pointer transition-colors text-sm"
                 @click="showXhyPopup(item, $event)"
-                @mouseenter="showXhyPopup(item, $event)"
               >
                 <span class="text-gray-700">{{ item.split('-')[0] }}</span>
                 <span class="text-gray-400 mx-1">—</span>
@@ -352,44 +349,18 @@
       </div>
     </Transition>
 
-    <!-- Hover/Click Popup for words, idioms, xiehouyu -->
-    <Transition name="popup">
-      <div
-        v-if="showPopup"
-        ref="popupRef"
-        class="fixed bg-white rounded-xl shadow-2xl border border-gray-200 p-4 z-50 max-w-sm w-[280px]"
-        :style="{ left: popupPosition.x + 'px', top: popupPosition.y + 'px' }"
-      >
-        <div class="flex items-center justify-between mb-3">
-          <h4 class="text-base font-bold text-gray-800">{{ popupTitle }}</h4>
-          <button @click="showPopup = false" class="p-1 hover:bg-gray-100 rounded-full">
-            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-        <!-- Action buttons -->
-        <div class="flex items-center gap-2 mb-3">
-          <button @click="playTTS(popupTitle)" class="flex items-center gap-1.5 px-3 py-1.5 bg-primary-50 hover:bg-primary-100 text-primary-700 text-sm rounded-full transition-colors">
-            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
-            <span>TTS</span>
-          </button>
-          <button @click="translateTextInPopup" class="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 text-sm rounded-full transition-colors">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" /></svg>
-            <span>翻译</span>
-          </button>
-        </div>
-        <!-- Translation result -->
-        <div v-if="popupTranslation" class="mb-3 p-3 bg-purple-50 rounded-xl">
-          <p class="text-purple-700 text-sm">{{ popupTranslation }}</p>
-        </div>
-        <!-- Explanation content -->
-        <div v-if="popupContent" class="text-gray-600 text-sm leading-relaxed">
-          <p>{{ popupContent }}</p>
-        </div>
-        <div v-else class="text-gray-400 text-sm">加载中...</div>
-      </div>
-    </Transition>
+    <!-- Shared Word Popup Component -->
+    <WordPopup
+      :visible="showPopup"
+      :title="popupTitle"
+      :content="popupContent"
+      :translation="popupTranslation"
+      :loading="popupLoading"
+      :position="popupPosition"
+      @close="showPopup = false"
+      @play-tts="playTTS"
+      @translate="(text) => { translateText(text); loadExplanation(text) }"
+    />
 
     <!-- Confetti Container -->
     <div ref="confettiRef" class="fixed inset-0 pointer-events-none z-50"></div>
@@ -545,10 +516,15 @@ import { useHead } from '@vueuse/head'
 import HanziWriter from 'hanzi-writer'
 import cnchar from 'cnchar-all'
 import PoetryCard from '../components/PoetryCard.vue'
+import WordPopup from '../components/WordPopup.vue'
+import { useWordPopup } from '../composables/useWordPopup'
 
 const route = useRoute()
 const apiStore = useApiStore()
 const userStore = useUserStore()
+
+// Use the shared word popup composable
+const { showPopup, popupTitle, popupContent, popupTranslation, popupLoading, popupPosition, showPopupAt, loadExplanation, playTTS, translateText } = useWordPopup()
 
 const hanzi = ref(null)
 const loading = ref(true)
@@ -575,13 +551,6 @@ const explainContent = ref('')
 const modalTranslation = ref('')
 
 // Popup state
-const showPopup = ref(false)
-const popupTitle = ref('')
-const popupContent = ref('')
-const popupTranslation = ref('')
-const popupPosition = ref({ x: 0, y: 0 })
-const popupRef = ref(null)
-const popupTimeout = ref(null)
 
 // Selection popup state
 const showSelectionPopup = ref(false)
@@ -670,51 +639,23 @@ function formatLevel(level) {
   return level.replace('hsk', 'HSK ').replace('-', ' ')
 }
 
-// TTS function
-function playTTS(text) {
-  if (!text) return
-  const url = `https://omni-gen.app.ynu.edu.cn/tts/${encodeURIComponent(text)}.mp3`
-  const audio = new Audio(url)
-  audio.play().catch(e => console.error('TTS error:', e))
-}
-
-// Translate function
-async function translateText(text) {
-  if (!text) return
-  modalTranslation.value = '翻译中...'
-  try {
-    const response = await fetch(`https://omni-gen.app.ynu.edu.cn/translate/${encodeURIComponent(text)}`)
-    const result = await response.text()
-    modalTranslation.value = result || '暂无翻译'
-  } catch (e) {
-    modalTranslation.value = '翻译失败'
-    console.error('Translate error:', e)
-  }
-}
-
-// Translate text in popup
-async function translateTextInPopup() {
-  if (!popupTitle.value) return
-  popupTranslation.value = '翻译中...'
-  try {
-    const response = await fetch(`https://omni-gen.app.ynu.edu.cn/translate/${encodeURIComponent(popupTitle.value)}`)
-    const result = await response.text()
-    popupTranslation.value = result || '暂无翻译'
-  } catch (e) {
-    popupTranslation.value = '翻译失败'
-    console.error('Translate error:', e)
-  }
-}
-
 // Translate selected text
 async function translateSelectedText() {
   if (!selectedText.value) return
   selectionTranslation.value = '翻译中...'
   showSelectionTranslation.value = true
   try {
-    const response = await fetch(`https://omni-gen.app.ynu.edu.cn/translate/${encodeURIComponent(selectedText.value)}`)
-    const result = await response.text()
-    selectionTranslation.value = result || '暂无翻译'
+    const response = await fetch('https://omni-gen.app.ynu.edu.cn/api/v1/translate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        content: selectedText.value
+      })
+    })
+    const result = await response.json()
+    selectionTranslation.value = result.translated_text || result.translation || '暂无翻译'
   } catch (e) {
     selectionTranslation.value = '翻译失败'
     console.error('Translate error:', e)
@@ -754,16 +695,6 @@ function handleSelectionClickOutside(event) {
   }
 }
 
-// Close popup when clicking outside
-function handleClickOutside(event) {
-  if (popupRef.value && !popupRef.value.contains(event.target)) {
-    // Check if click was on a word/idiom/xhy element
-    const target = event.target
-    if (!target.closest('.word-item') && !target.closest('.idiom-item') && !target.closest('.xhy-item')) {
-      showPopup.value = false
-    }
-  }
-}
 
 // Close popup on escape key
 function handleEscapeKey(event) {
@@ -891,91 +822,23 @@ function nextQuestion() {
   }
 }
 
-// Fetch explanation from API
-async function fetchExplain(text) {
-  if (!text) return ''
-  try {
-    const response = await fetch(`https://omni-gen.app.ynu.edu.cn/explain/${encodeURIComponent(text)}`)
-    const result = await response.text()
-    return result || '暂无释义'
-  } catch (e) {
-    console.error('Explain error:', e)
-    return '暂无释义'
-  }
-}
 
-// Show popup near click position
+// Show word popup
 function showWordPopup(word, event) {
-  popupTitle.value = word
-  popupContent.value = ''
-  popupTranslation.value = ''
-  showPopupNear(event)
-
-  // Load explanation from API
-  fetchExplain(word).then(result => {
-    popupContent.value = result
-  })
+  showPopupAt(word, event)
+  loadExplanation(word)
 }
 
 function showIdiomPopup(idiom, event) {
-  popupTitle.value = idiom
-  popupContent.value = ''
-  popupTranslation.value = ''
-  showPopupNear(event)
-
-  // Load explanation from API
-  fetchExplain(idiom).then(result => {
-    popupContent.value = result
-  })
+  showPopupAt(idiom, event)
+  loadExplanation(idiom)
 }
 
 function showXhyPopup(xhy, event) {
   const [question, answer] = xhy.split('-')
-  popupTitle.value = question
-  popupContent.value = answer ? `答案: ${answer}` : xhy
-  popupTranslation.value = ''
-  showPopupNear(event)
+  showPopupAt(question, event, answer ? `答案: ${answer}` : xhy)
 }
 
-function showPopupNear(event) {
-  const x = event.clientX + 15
-  const y = event.clientY + 15
-
-  // Adjust position to stay within viewport
-  const adjustedX = Math.min(x, window.innerWidth - 320)
-  const adjustedY = Math.min(y, window.innerHeight - 200)
-
-  popupPosition.value = { x: adjustedX, y: adjustedY }
-  showPopup.value = true
-}
-
-// Show word/idiom explanation (modal version)
-function showWordExplain(word) {
-  explainTitle.value = word
-  explainContent.value = '加载中...'
-  showExplainModal.value = true
-
-  fetchExplain(word).then(result => {
-    explainContent.value = result
-  })
-}
-
-function showIdiomExplain(idiom) {
-  explainTitle.value = idiom
-  explainContent.value = '加载中...'
-  showExplainModal.value = true
-
-  fetchExplain(idiom).then(result => {
-    explainContent.value = result
-  })
-}
-
-function showXhyExplain(xhy) {
-  const [question, answer] = xhy.split('-')
-  explainTitle.value = question
-  explainContent.value = answer || xhy
-  showExplainModal.value = true
-}
 
 // Load cnchar info for a character
 function loadCncharInfo(char) {
@@ -1222,8 +1085,6 @@ async function fetchData() {
 
 onMounted(() => {
   fetchData()
-  document.addEventListener('click', handleClickOutside)
-  document.addEventListener('keydown', handleEscapeKey)
   document.addEventListener('mouseup', handleTextSelection)
   document.addEventListener('click', handleSelectionClickOutside)
 })
@@ -1250,8 +1111,6 @@ onUnmounted(() => {
   if (audio.value) {
     audio.value.pause()
   }
-  document.removeEventListener('click', handleClickOutside)
-  document.removeEventListener('keydown', handleEscapeKey)
   document.removeEventListener('mouseup', handleTextSelection)
   document.removeEventListener('click', handleSelectionClickOutside)
 })

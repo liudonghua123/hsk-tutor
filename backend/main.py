@@ -3,7 +3,7 @@ import os
 import httpx
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
-from fastapi import FastAPI, Depends, Query, Request
+from fastapi import FastAPI, Depends, Query, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
@@ -289,7 +289,34 @@ async def get_grammar_detail(
     """Get detail of a specific grammar point."""
     grammar = crud.get_grammar_by_id(db, grammar_id)
     if not grammar:
-        return {"error": "Grammar not found"}
+        return HTTPException(status_code=404, detail="Grammar not found")
+
+    is_fav = False
+    if user:
+        is_fav = crud.check_favorite(db, user, "grammar", str(grammar_id))
+
+    return GrammarResponse(
+        id=grammar.id,
+        level=grammar.level,
+        category=grammar.category,
+        category_name=grammar.category_name,
+        detail=grammar.detail,
+        content=grammar.content,
+        is_favorited=is_fav
+    )
+
+
+@app.get("/api/grammar/{level}/{grammar_id}", response_model=GrammarResponse)
+async def get_grammar_by_level_and_id(
+    level: str,
+    grammar_id: int,
+    user: Optional[str] = Query(None, description="User ID"),
+    db: Session = Depends(get_db)
+):
+    """Get a specific grammar point by level and ID."""
+    grammar = crud.get_grammar_by_level_and_id(db, level, grammar_id)
+    if not grammar:
+        return HTTPException(status_code=404, detail="Grammar not found")
 
     is_fav = False
     if user:

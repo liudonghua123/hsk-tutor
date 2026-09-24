@@ -6,6 +6,7 @@ import Home from './views/Home.vue'
 import ReadList from './views/ReadList.vue'
 import WriteList from './views/WriteList.vue'
 import GrammarList from './views/GrammarList.vue'
+import GrammarDetail from './views/GrammarDetail.vue'
 import WordDetail from './views/WordDetail.vue'
 import Favorites from './views/Favorites.vue'
 
@@ -44,6 +45,11 @@ const routes = [
     path: '/grammar/:level',
     name: 'GrammarLevel',
     component: GrammarList
+  },
+  {
+    path: '/grammar/:level/:id',
+    name: 'GrammarDetail',
+    component: GrammarDetail
   },
   {
     path: '/word/:word',

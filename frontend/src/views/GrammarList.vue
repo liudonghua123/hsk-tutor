@@ -85,10 +85,11 @@
         </div>
 
         <div class="space-y-3">
-          <div
+          <router-link
             v-for="item in grammarList"
             :key="item.id"
-            class="card card-hover relative"
+            :to="`/grammar/${currentLevel}/${item.id}`"
+            class="card card-hover relative block"
             :class="{ 'visited-card': isVisited(item.id) }"
           >
             <div class="flex items-start gap-4">
@@ -108,7 +109,7 @@
                 <p v-if="item.detail" class="text-sm text-gray-500 mt-1">{{ item.detail }}</p>
               </div>
               <button
-                @click="toggleFavorite(item)"
+                @click.prevent="toggleFavorite(item)"
                 class="p-2 rounded-full hover:bg-gray-100 transition-colors flex-shrink-0"
                 :class="isFavorited(item.id) ? 'text-red-500' : 'text-gray-400'"
               >
@@ -117,7 +118,7 @@
                 </svg>
               </button>
             </div>
-          </div>
+          </router-link>
         </div>
       </div>
     </div>

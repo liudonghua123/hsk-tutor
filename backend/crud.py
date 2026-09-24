@@ -76,6 +76,14 @@ def get_grammar_by_id(db: Session, grammar_id: int) -> Optional[Grammar]:
     return db.query(Grammar).filter(Grammar.id == grammar_id).first()
 
 
+def get_grammar_by_level_and_id(db: Session, level: str, grammar_id: int) -> Optional[Grammar]:
+    """Get a single grammar point by level and ID."""
+    return db.query(Grammar).filter(
+        Grammar.level == level,
+        Grammar.id == grammar_id
+    ).first()
+
+
 def get_grammar_list_by_level(db: Session, level: str) -> List[Grammar]:
     """Get all grammar points for a specific level."""
     return db.query(Grammar).filter(Grammar.level == level).all()
