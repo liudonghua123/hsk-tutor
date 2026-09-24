@@ -42,15 +42,26 @@
           </svg>
           <span class="font-medium">返回 / Back</span>
         </router-link>
-        <button
-          @click="toggleFavorite"
-          class="p-3 rounded-full hover:bg-red-50 transition-colors"
-          :class="isFavorited ? 'text-red-500 bg-red-50' : 'text-gray-400 hover:text-red-500'"
-        >
-          <svg class="w-6 h-6" :fill="isFavorited ? 'currentColor' : 'none'" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-          </svg>
-        </button>
+        <div class="flex items-center gap-3">
+          <button
+            @click="openPracticeDialog"
+            class="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-green-50 to-emerald-50 hover:from-green-100 hover:to-emerald-100 border border-green-200 hover:border-green-300 rounded-xl text-green-700 hover:text-green-800 transition-all duration-300 shadow-sm hover:shadow-md"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+            </svg>
+            <span class="font-medium">练习</span>
+          </button>
+          <button
+            @click="toggleFavorite"
+            class="p-3 rounded-full hover:bg-red-50 transition-colors"
+            :class="isFavorited ? 'text-red-500 bg-red-50' : 'text-gray-400 hover:text-red-500'"
+          >
+            <svg class="w-6 h-6" :fill="isFavorited ? 'currentColor' : 'none'" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       <!-- Main Character Display -->
@@ -408,6 +419,120 @@
     >
       <p class="text-purple-700 text-sm">{{ selectionTranslation }}</p>
     </div>
+
+    <!-- Practice Dialog -->
+    <Transition name="modal">
+      <div v-if="showPracticeDialog" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" @click.self="closePracticeDialog">
+        <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
+          <!-- Header -->
+          <div class="flex items-center justify-between p-5 border-b border-gray-100">
+            <div>
+              <h3 class="text-lg font-bold text-gray-800">练习 / Practice</h3>
+              <p class="text-sm text-gray-500">{{ currentQuestionIndex + 1 }} / {{ practiceQuestions.length }}</p>
+            </div>
+            <button @click="closePracticeDialog" class="p-2 hover:bg-gray-100 rounded-full">
+              <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <!-- Loading state -->
+          <div v-if="practiceLoading" class="flex-1 flex items-center justify-center p-8">
+            <div class="text-center">
+              <div class="animate-spin rounded-full h-12 w-12 border-4 border-primary-200 border-t-primary-600 mx-auto mb-4"></div>
+              <p class="text-gray-500">正在生成练习题...</p>
+            </div>
+          </div>
+
+          <!-- Error state -->
+          <div v-else-if="practiceError" class="flex-1 flex items-center justify-center p-8">
+            <div class="text-center">
+              <p class="text-red-500 mb-4">{{ practiceError }}</p>
+              <button @click="generatePractice" class="btn-primary px-5 py-2">重试</button>
+            </div>
+          </div>
+
+          <!-- Question content -->
+          <div v-else-if="currentQuestion" class="flex-1 overflow-y-auto p-5">
+            <!-- Score display -->
+            <div class="flex items-center gap-4 mb-6">
+              <div class="flex items-center gap-2">
+                <span class="text-green-600 font-semibold">{{ correctCount }}</span>
+                <svg class="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-red-600 font-semibold">{{ wrongCount }}</span>
+                <svg class="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 24 24"><path d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              </div>
+            </div>
+
+            <!-- Question title -->
+            <div class="mb-6">
+              <h4 class="text-xl font-bold text-gray-800">{{ currentQuestion.title }}</h4>
+            </div>
+
+            <!-- Options -->
+            <div class="space-y-3">
+              <button
+                v-for="(option, index) in currentQuestion.options"
+                :key="index"
+                @click="selectAnswer(index)"
+                :disabled="answered"
+                class="w-full text-left p-4 rounded-xl border-2 transition-all duration-200"
+                :class="getOptionClass(index)"
+              >
+                <span class="font-medium">{{ option }}</span>
+              </button>
+            </div>
+
+            <!-- Answer feedback -->
+            <div v-if="answered" class="mt-6 p-4 rounded-xl" :class="isCurrentCorrect ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'">
+              <div class="flex items-center gap-2 mb-2">
+                <svg v-if="isCurrentCorrect" class="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <svg v-else class="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 24 24"><path d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <span class="font-semibold" :class="isCurrentCorrect ? 'text-green-700' : 'text-red-700'">
+                  {{ isCurrentCorrect ? '正确!' : '错误' }}
+                </span>
+              </div>
+              <p class="text-gray-600 text-sm">{{ currentQuestion.analysis }}</p>
+            </div>
+          </div>
+
+          <!-- Footer with navigation -->
+          <div class="flex items-center justify-between p-5 border-t border-gray-100 bg-gray-50">
+            <button
+              @click="previousQuestion"
+              :disabled="currentQuestionIndex === 0"
+              class="px-4 py-2 text-gray-600 hover:text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <svg class="w-5 h-5 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+              </svg>
+              上一题
+            </button>
+            <button
+              v-if="answered && currentQuestionIndex < practiceQuestions.length - 1"
+              @click="nextQuestion"
+              class="btn-primary px-5 py-2"
+            >
+              下一题
+              <svg class="w-5 h-5 inline ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+            <button
+              v-else-if="answered && currentQuestionIndex === practiceQuestions.length - 1"
+              @click="closePracticeDialog"
+              class="btn-primary px-5 py-2"
+            >
+              完成
+            </button>
+            <span v-else class="text-gray-400 text-sm">请选择答案</span>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -475,6 +600,17 @@ const showAllStrokes = ref(false)
 const showAllPinyin = ref(false)
 const showAllIdioms = ref(false)
 
+// Practice dialog state
+const showPracticeDialog = ref(false)
+const practiceLoading = ref(false)
+const practiceError = ref('')
+const practiceQuestions = ref([])
+const currentQuestionIndex = ref(0)
+const selectedAnswer = ref(null)
+const answered = ref(false)
+const correctCount = ref(0)
+const wrongCount = ref(0)
+
 const word = computed(() => route.params.word)
 const type = computed(() => route.query.type || 'read')
 const level = computed(() => route.query.level)
@@ -512,6 +648,18 @@ const cncharInfo = computed(() => {
     return cncharInfoCache.value[word.value] || {}
   }
   return {}
+})
+
+// Practice dialog computed
+const currentQuestion = computed(() => {
+  return practiceQuestions.value[currentQuestionIndex.value] || null
+})
+
+const isCurrentCorrect = computed(() => {
+  if (!currentQuestion.value || selectedAnswer.value === null) return false
+  const selectedOption = currentQuestion.value.options[selectedAnswer.value]
+  const optionLetter = selectedOption.charAt(0)
+  return currentQuestion.value.answer.includes(optionLetter)
 })
 
 useHead({
@@ -621,6 +769,125 @@ function handleClickOutside(event) {
 function handleEscapeKey(event) {
   if (event.key === 'Escape') {
     showPopup.value = false
+    if (showPracticeDialog.value) {
+      closePracticeDialog()
+    }
+  }
+}
+
+// Practice dialog functions
+function openPracticeDialog() {
+  showPracticeDialog.value = true
+  resetPracticeState()
+  generatePractice()
+}
+
+function closePracticeDialog() {
+  showPracticeDialog.value = false
+}
+
+function resetPracticeState() {
+  practiceQuestions.value = []
+  currentQuestionIndex.value = 0
+  selectedAnswer.value = null
+  answered.value = false
+  correctCount.value = 0
+  wrongCount.value = 0
+  practiceError.value = ''
+}
+
+function generatePracticeTopic() {
+  // Build topic based on type and level
+  const levelStr = hanzi.value?.levels?.[0] || '1-2级'
+  const typeStr = type.value === 'write' ? '书写字' : '认读字'
+  const topic = `HSK${typeStr}${levelStr}-${word.value}`
+  return topic
+}
+
+async function generatePractice() {
+  if (!hanzi.value) return
+
+  practiceLoading.value = true
+  practiceError.value = ''
+  practiceQuestions.value = []
+
+  const topic = generatePracticeTopic()
+
+  try {
+    const response = await fetch('https://omni-gen.app.ynu.edu.cn/api/v1/practise', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        topic: topic,
+        count: 5,
+        types: ['single_choice'],
+        prompt: `你是一个专业的HSK习题生成专家。请根据以下主题生成习题。\n\n主题：{topic}\n题目数量：{count}\n题目类型：{types}\n\n请严格按照以下JSON格式返回，不要包含任何其他内容：\n[\n  {{\n    \"title\": \"题干内容\",\n    \"type\": \"single_choice|multiple_choice|true_false\",\n    \"options\": [\"A. 选项1\", \"B. 选项2\", \"C. 选项3\", \"D. 选项4\"],\n    \"answer\": [\"A\"],\n    \"analysis\": \"题目解析\"\n  }}\n]`
+      })
+    })
+
+    const result = await response.json()
+
+    if (result.success && result.questions && result.questions.length > 0) {
+      practiceQuestions.value = result.questions
+      practiceLoading.value = false
+    } else {
+      practiceError.value = '生成练习题失败，请重试'
+      practiceLoading.value = false
+    }
+  } catch (e) {
+    console.error('Practice generation error:', e)
+    practiceError.value = '网络错误，请检查网络连接'
+    practiceLoading.value = false
+  }
+}
+
+function selectAnswer(index) {
+  if (answered.value) return
+
+  selectedAnswer.value = index
+  answered.value = true
+
+  if (isCurrentCorrect.value) {
+    correctCount.value++
+  } else {
+    wrongCount.value++
+  }
+}
+
+function getOptionClass(index) {
+  if (!answered.value) {
+    return 'border-gray-200 hover:border-primary-400 hover:bg-primary-50'
+  }
+
+  const selectedOption = currentQuestion.value.options[index]
+  const optionLetter = selectedOption.charAt(0)
+  const isCorrect = currentQuestion.value.answer.includes(optionLetter)
+  const isSelected = index === selectedAnswer.value
+
+  if (isCorrect) {
+    return 'border-green-500 bg-green-50 text-green-700'
+  }
+  if (isSelected && !isCorrect) {
+    return 'border-red-500 bg-red-50 text-red-700'
+  }
+  return 'border-gray-200 opacity-50'
+}
+
+function previousQuestion() {
+  if (currentQuestionIndex.value > 0) {
+    currentQuestionIndex.value--
+    selectedAnswer.value = null
+    answered.value = false
+  }
+}
+
+function nextQuestion() {
+  if (currentQuestionIndex.value < practiceQuestions.value.length - 1) {
+    currentQuestionIndex.value++
+    selectedAnswer.value = null
+    answered.value = false
   }
 }
 
@@ -967,6 +1234,10 @@ watch(word, () => {
   showAllStrokes.value = false
   showAllPinyin.value = false
   showAllIdioms.value = false
+  // Close practice dialog if open
+  if (showPracticeDialog.value) {
+    closePracticeDialog()
+  }
   fetchData()
 })
 watch(type, () => {
