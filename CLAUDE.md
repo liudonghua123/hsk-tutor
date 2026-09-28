@@ -14,6 +14,7 @@ This is an HSK learning application with recognition, writing practice, and gram
 ## Data Sources
 - HSK data: `C:\Users\admin\code\other\HSK-3.0\New HSK (2025)\`
 - Word definitions: `C:\Users\admin\code\other\chinese-xinhua\data\word.json`
+- Source files for init: `backend/data/hsk_all_hanzi.json`, `hsk_all_handwritten.json`, `hsk_all_grammar.json`
 
 ## Key Files
 - `backend/init_db.py` - Database initialization
@@ -41,3 +42,24 @@ cd frontend && npm install && npm run dev
 - `/grammar` / `/grammar/:level` - Grammar list
 - `/word/:word` - Character detail
 - `/favorites` - User favorites
+- `/admin` - System configuration management
+
+## Configuration System
+Configuration is managed via the `/admin` page (password protected) and stored in the `config` database table.
+
+**Config API endpoints:**
+- `GET /api/config` - Get all config items
+- `GET /api/config/{key}` - Get single config item
+- `PUT /api/config/{key}` - Update config value
+- `POST /api/config/{key}/reset` - Reset to default value
+- `POST /api/config/check-password` - Verify admin password
+
+**Key configuration items:**
+- `OMNI_GEN_BASE_URL` - Omni-Gen API base URL
+- `EXPLAIN_WORD_PROMPT` - Prompt for word/idiom/xiehouyu explanation (uses `{content}` placeholder)
+- `EXPLAIN_GRAMMAR_PROMPT` - Prompt for grammar explanation (uses `{content}` placeholder)
+- `TRANSLATE_PROMPT` - Prompt for translation (uses `{target_lang}` and `{content}` placeholders)
+- `PRACTISE_PROMPT` - Prompt for practice generation (uses `{topic}`, `{count}`, `{types}` placeholders)
+- `ADMIN_PASSWORD` - Password for accessing /admin page
+
+Config values are loaded into frontend `useConfigStore()` and used by components for API calls.

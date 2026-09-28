@@ -1,6 +1,9 @@
 import { ref, onMounted, onUnmounted } from 'vue'
+import { useConfigStore } from '../stores/config'
 
 export function useWordPopup() {
+  const configStore = useConfigStore()
+
   const showPopup = ref(false)
   const popupTitle = ref('')
   const popupContent = ref('')
@@ -34,11 +37,23 @@ export function useWordPopup() {
     }
   }
 
-  // Fetch explanation from API
+  // Fetch explanation from API using configured prompt
   async function fetchExplain(text) {
     if (!text) return ''
+
+    // Get the prompt template from config
+    const promptTemplate = configStore.wordPrompt
+    const prompt = promptTemplate.replace('{content}', text)
+
     try {
-      const response = await fetch(`https://omni-gen.app.ynu.edu.cn/explain/${encodeURIComponent(text)}`)
+      const response = await fetch(configStore.getEndpoint('/api/v1/explain'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: text,
+          prompt: prompt
+        })
+      })
       if (!response.ok) throw new Error('Failed to fetch')
       return await response.text()
     } catch (e) {
@@ -58,20 +73,21 @@ export function useWordPopup() {
   // Play TTS
   function playTTS(text) {
     if (!text) return
-    const url = `https://omni-gen.app.ynu.edu.cn/tts/${encodeURIComponent(text)}.mp3`
+    const url = configStore.getEndpoint(`/tts/${encodeURIComponent(text)}.mp3`)
     const audio = new Audio(url)
     audio.play().catch(e => console.error('TTS error:', e))
   }
 
-  // Translate text
-  async function translateText(text) {
+  // Translate text using configurable prompt
+  async function translateText(text, targetLang = 'English') {
     if (!text) return
     popupTranslation.value = '翻译中...'
     try {
-      const response = await fetch('https://omni-gen.app.ynu.edu.cn/api/v1/translate', {
+      const prompt = configStore.buildTranslatePrompt(text, targetLang)
+      const response = await fetch(configStore.getEndpoint('/api/v1/translate'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: text })
+        body: JSON.stringify({ content: text, prompt: prompt })
       })
       const result = await response.json()
       popupTranslation.value = result.translated_text || result.translation || '暂无翻译'
@@ -93,7 +109,7 @@ export function useWordPopup() {
     if (clickTimeout) clearTimeout(clickTimeout)
     clickTimeout = setTimeout(() => {
       if (!showPopup.value) return
-      const popupEl = document.querySelector('.fixed.z-\\[9999\\]')
+      const popupEl = document.querySelector('.fixed.z-\[9999\]')
       if (popupEl && !popupEl.contains(event.target)) {
         const target = event.target
         if (!target.closest('.word-item') && !target.closest('.idiom-item') && !target.closest('.xhy-item') && !target.closest('.grammar-clickable')) {
@@ -110,7 +126,12 @@ export function useWordPopup() {
     }
   }
 
-  onMounted(() => {
+  onMounted(async () => {
+    // Fetch configs if not initialized
+    if (!configStore.initialized) {
+      await configStore.fetchConfigs()
+    }
+
     document.addEventListener('click', handleClickOutside)
     document.addEventListener('keydown', handleEscapeKey)
   })

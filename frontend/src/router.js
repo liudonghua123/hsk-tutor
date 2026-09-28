@@ -9,6 +9,7 @@ import GrammarList from './views/GrammarList.vue'
 import GrammarDetail from './views/GrammarDetail.vue'
 import WordDetail from './views/WordDetail.vue'
 import Favorites from './views/Favorites.vue'
+import AdminConfig from './views/AdminConfig.vue'
 
 const routes = [
   {
@@ -60,6 +61,11 @@ const routes = [
     path: '/favorites',
     name: 'Favorites',
     component: Favorites
+  },
+  {
+    path: '/admin',
+    name: 'AdminConfig',
+    component: AdminConfig
   }
 ]
 

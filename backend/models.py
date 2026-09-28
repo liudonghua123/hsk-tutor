@@ -106,3 +106,14 @@ class UserVisited(Base):
     __table_args__ = (
         UniqueConstraint('user_id', 'item_type', 'item_id', name='unique_user_visited'),
     )
+
+
+class Config(Base):
+    """Model for application configuration."""
+    __tablename__ = "config"
+
+    key = Column(String(100), primary_key=True)
+    value = Column(Text, nullable=True)
+    default_value = Column(Text, nullable=True)
+    description = Column(String(500), nullable=True)
+    updated_at = Column(Integer)  # Unix timestamp

@@ -118,3 +118,21 @@ class GrammarListResponse(BaseModel):
     level: str
     count: int
     items: List[GrammarResponse]
+
+
+# ============ Config Schemas ============
+
+class ConfigBase(BaseModel):
+    key: str
+    value: Optional[str] = None
+    default_value: Optional[str] = None
+    description: Optional[str] = None
+
+
+class ConfigResponse(ConfigBase):
+    updated_at: Optional[int] = None
+
+
+class ConfigUpdate(BaseModel):
+    key: str
+    value: str

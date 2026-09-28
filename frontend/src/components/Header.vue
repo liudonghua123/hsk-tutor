@@ -246,6 +246,7 @@ const navLinks = [
   { to: '/read', label: '认读', icon: '📖' },
   { to: '/write', label: '书写', icon: '✍️' },
   { to: '/grammar', label: '语法', icon: '📝' },
+  { to: '/admin', label: '配置', icon: '⚙️' },
 ]
 
 const favoriteCount = computed(() => userStore.favoriteCount)

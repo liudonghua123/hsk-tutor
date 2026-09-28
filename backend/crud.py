@@ -1,7 +1,7 @@
 """CRUD operations for HSK Tutor."""
 from typing import List, Optional
 from sqlalchemy.orm import Session
-from models import Hanzi, HandwrittenHanzi, Grammar, UserFavorite, UserVisited, HanziLevel, HandwrittenLevel
+from models import Hanzi, HandwrittenHanzi, Grammar, UserFavorite, UserVisited, HanziLevel, HandwrittenLevel, Config
 from datetime import datetime
 
 
@@ -173,3 +173,63 @@ def add_visited(db: Session, user_id: str, item_type: str, item_id: str) -> User
     db.commit()
     db.refresh(visited)
     return visited
+
+
+# ============ Config Operations ============
+
+def get_config(db: Session, key: str) -> Optional[Config]:
+    """Get a config value by key."""
+    return db.query(Config).filter(Config.key == key).first()
+
+
+def get_all_configs(db: Session) -> List[Config]:
+    """Get all config items."""
+    return db.query(Config).all()
+
+
+def set_config(db: Session, key: str, value: str, description: str = None) -> Config:
+    """Set a config value, creating if not exists."""
+    config = db.query(Config).filter(Config.key == key).first()
+    if config:
+        config.value = value
+        if description is not None:
+            config.description = description
+        config.updated_at = int(datetime.now().timestamp())
+    else:
+        config = Config(
+            key=key,
+            value=value,
+            description=description,
+            updated_at=int(datetime.now().timestamp())
+        )
+        db.add(config)
+    db.commit()
+    db.refresh(config)
+    return config
+
+
+def reset_config(db: Session, key: str) -> Optional[Config]:
+    """Reset a config value to its default."""
+    config = db.query(Config).filter(Config.key == key).first()
+    if config:
+        config.value = config.default_value
+        config.updated_at = int(datetime.now().timestamp())
+        db.commit()
+        db.refresh(config)
+    return config
+
+
+def init_default_configs(db: Session, configs: List[dict]) -> None:
+    """Initialize default config values if they don't exist."""
+    for conf in configs:
+        existing = db.query(Config).filter(Config.key == conf['key']).first()
+        if not existing:
+            config = Config(
+                key=conf['key'],
+                value=conf.get('value', ''),
+                default_value=conf.get('default_value', conf.get('value', '')),
+                description=conf.get('description', ''),
+                updated_at=int(datetime.now().timestamp())
+            )
+            db.add(config)
+    db.commit()

@@ -9,19 +9,38 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from typing import Optional
 
-from database import engine, get_db, Base
+from database import engine, get_db, Base, SessionLocal
 from models import Hanzi, HandwrittenHanzi, Grammar, UserFavorite, UserVisited, HanziLevel, HandwrittenLevel
 import crud
 from schemas import (
     HanziResponse, HandwrittenResponse, GrammarResponse,
     LevelInfo, FavoriteCreate, FavoriteResponse,
-    PoetryResponse, HanziListResponse, HandwrittenListResponse, GrammarListResponse
+    PoetryResponse, HanziListResponse, HandwrittenListResponse, GrammarListResponse,
+    ConfigResponse, ConfigUpdate
 )
+from dotenv import load_dotenv
 
 load_dotenv()
 
 # Jinrishici API token
 JINRISHICI_TOKEN = os.getenv("JINRISHICI_TOKEN", "")
+
+# Omni-Gen API Configuration
+OMNI_GEN_BASE_URL = os.getenv("OMNI_GEN_BASE_URL", "https://omni-gen.app.ynu.edu.cn")
+
+# Default prompts (use .env values to avoid multiline issues)
+_explain_word_default = "请解释以下中文词语、成语或歇后语，包括其中文含义、英文翻译、以及在句子中的用法示例。注意只输出解释内容，不要有其他说明：\\n\\n{content}"
+_explain_grammar_default = "你是一位资深 HSK 汉语语法教师。请根据以下语法点，为 HSK 学习者生成一份结构化学习卡片。【语法点】\\n{content}【输出要求】严格输出 JSON，不要任何额外文字。"
+_translate_default = "Translate the following text into {target_lang}. Note that you should only output the translated result without any additional explanation:\\n\\n{content}"
+_practise_default = "你是一个专业的习题生成专家。请根据以下主题生成习题。\\n\\n主题：{topic}\\n题目数量：{count}\\n题目类型：{types}\\n\\n请严格按照以下JSON格式返回，不要包含任何其他内容："
+
+EXPLAIN_WORD_PROMPT = os.getenv("EXPLAIN_WORD_PROMPT", _explain_word_default)
+EXPLAIN_GRAMMAR_PROMPT = os.getenv("EXPLAIN_GRAMMAR_PROMPT", _explain_grammar_default)
+TRANSLATE_PROMPT = os.getenv("TRANSLATE_PROMPT", _translate_default)
+PRACTISE_PROMPT = os.getenv("PRACTISE_PROMPT", _practise_default)
+
+# Admin password
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
 
 # Server port
 PORT = int(os.getenv("PORT", 8000))
@@ -32,6 +51,21 @@ async def lifespan(app: FastAPI):
     """Application lifespan handler."""
     # Create tables on startup
     Base.metadata.create_all(bind=engine)
+
+    # Initialize default configs
+    default_configs = [
+        {'key': 'OMNI_GEN_BASE_URL', 'value': OMNI_GEN_BASE_URL, 'description': 'Omni-Gen API 基础地址'},
+        {'key': 'EXPLAIN_WORD_PROMPT', 'value': EXPLAIN_WORD_PROMPT, 'description': '词语/成语/歇后语解释 Prompt'},
+        {'key': 'EXPLAIN_GRAMMAR_PROMPT', 'value': EXPLAIN_GRAMMAR_PROMPT, 'description': '语法解释 Prompt'},
+        {'key': 'TRANSLATE_PROMPT', 'value': TRANSLATE_PROMPT, 'description': '翻译 Prompt'},
+        {'key': 'PRACTISE_PROMPT', 'value': PRACTISE_PROMPT, 'description': '练习题生成 Prompt'},
+    ]
+    db = SessionLocal()
+    try:
+        crud.init_default_configs(db, default_configs)
+    finally:
+        db.close()
+
     yield
 
 
@@ -414,6 +448,87 @@ async def get_audio_url(pinyin: str):
 
     url = f"https://zidian.gushici.net/d/mp3/{encoded_pinyin}.mp3"
     return {"url": url, "pinyin": pinyin}
+
+
+# ============ Config API ============
+
+@app.get("/api/config", response_model=list[ConfigResponse])
+async def get_config_list(db: Session = Depends(get_db)):
+    """Get all configuration items."""
+    configs = crud.get_all_configs(db)
+    return [ConfigResponse(
+        key=c.key,
+        value=c.value,
+        default_value=c.default_value,
+        description=c.description,
+        updated_at=c.updated_at
+    ) for c in configs]
+
+
+@app.get("/api/config/{key}", response_model=ConfigResponse)
+async def get_config_item(
+    key: str,
+    db: Session = Depends(get_db)
+):
+    """Get a specific config item by key."""
+    config = crud.get_config(db, key)
+    if not config:
+        return HTTPException(status_code=404, detail="Config not found")
+    return ConfigResponse(
+        key=config.key,
+        value=config.value,
+        default_value=config.default_value,
+        description=config.description,
+        updated_at=config.updated_at
+    )
+
+
+@app.put("/api/config/{key}", response_model=ConfigResponse)
+async def update_config(
+    key: str,
+    config_update: ConfigUpdate,
+    db: Session = Depends(get_db)
+):
+    """Update a config value."""
+    config = crud.set_config(db, key, config_update.value)
+    return ConfigResponse(
+        key=config.key,
+        value=config.value,
+        default_value=config.default_value,
+        description=config.description,
+        updated_at=config.updated_at
+    )
+
+
+@app.post("/api/config/{key}/reset", response_model=ConfigResponse)
+async def reset_config_item(
+    key: str,
+    db: Session = Depends(get_db)
+):
+    """Reset a config value to its default."""
+    config = crud.reset_config(db, key)
+    if not config:
+        return HTTPException(status_code=404, detail="Config not found")
+    return ConfigResponse(
+        key=config.key,
+        value=config.value,
+        default_value=config.default_value,
+        description=config.description,
+        updated_at=config.updated_at
+    )
+
+
+@app.post("/api/config/check-password")
+async def check_admin_password(request: Request):
+    """Check if the provided password is correct for admin access."""
+    try:
+        body = await request.json()
+        password = body.get('password', '')
+        if password == ADMIN_PASSWORD:
+            return {"success": True, "message": "Password verified"}
+        return {"success": False, "message": "Invalid password"}
+    except Exception:
+        return {"success": False, "message": "Invalid request"}
 
 
 if __name__ == "__main__":

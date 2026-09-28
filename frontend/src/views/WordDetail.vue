@@ -506,6 +506,7 @@ import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { useApiStore } from '../stores/api'
 import { useUserStore } from '../stores/user'
+import { useConfigStore } from '../stores/config'
 import { useHead } from '@vueuse/head'
 import HanziWriter from 'hanzi-writer'
 import cnchar from 'cnchar-all'
@@ -516,6 +517,7 @@ import { useWordPopup } from '../composables/useWordPopup'
 const route = useRoute()
 const apiStore = useApiStore()
 const userStore = useUserStore()
+const configStore = useConfigStore()
 
 // Use the shared word popup composable
 const { showPopup, popupTitle, popupContent, popupTranslation, popupLoading, popupPosition, showPopupAt, loadExplanation, playTTS, translateText } = useWordPopup()
@@ -639,13 +641,15 @@ async function translateSelectedText() {
   if (!selectedText.value) return
   selectionTranslation.value = '翻译中...'
   try {
-    const response = await fetch('https://omni-gen.app.ynu.edu.cn/api/v1/translate', {
+    const prompt = configStore.buildTranslatePrompt(selectedText.value, 'English')
+    const response = await fetch(configStore.getEndpoint('/api/v1/translate'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        content: selectedText.value
+        content: selectedText.value,
+        prompt: prompt
       })
     })
     const result = await response.json()
@@ -662,7 +666,7 @@ async function loadSelectionExplanation() {
   selectionLoading.value = true
   selectionExplanation.value = ''
   try {
-    const response = await fetch(`https://omni-gen.app.ynu.edu.cn/explain/${encodeURIComponent(selectedText.value)}`)
+    const response = await fetch(configStore.getEndpoint(`/explain/${encodeURIComponent(selectedText.value)}`))
     selectionExplanation.value = await response.text() || '暂无释义'
   } catch (e) {
     selectionExplanation.value = '获取释义失败'
@@ -750,9 +754,10 @@ async function generatePractice() {
   practiceQuestions.value = []
 
   const topic = generatePracticeTopic()
+  const prompt = configStore.buildPractisePrompt(topic, 5, ['single_choice'])
 
   try {
-    const response = await fetch('https://omni-gen.app.ynu.edu.cn/api/v1/practise', {
+    const response = await fetch(configStore.getEndpoint('/api/v1/practise'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -761,7 +766,7 @@ async function generatePractice() {
         topic: topic,
         count: 5,
         types: ['single_choice'],
-        prompt: `你是一个专业的HSK习题生成专家。请根据以下主题生成习题。\n\n主题：{topic}\n题目数量：{count}\n题目类型：{types}\n\n请严格按照以下JSON格式返回，不要包含任何其他内容：\n[\n  {{\n    \"title\": \"题干内容\",\n    \"type\": \"single_choice|multiple_choice|true_false\",\n    \"options\": [\"A. 选项1\", \"B. 选项2\", \"C. 选项3\", \"D. 选项4\"],\n    \"answer\": [\"A\"],\n    \"analysis\": \"题目解析\"\n  }}\n]`
+        prompt: prompt
       })
     })
 
@@ -800,9 +805,10 @@ async function generatePracticeWithRefresh() {
   practiceQuestions.value = []
 
   const topic = generatePracticeTopic()
+  const prompt = configStore.buildPractisePrompt(topic, 5, ['single_choice'])
 
   try {
-    const response = await fetch('https://omni-gen.app.ynu.edu.cn/api/v1/practise', {
+    const response = await fetch(configStore.getEndpoint('/api/v1/practise'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -812,7 +818,7 @@ async function generatePracticeWithRefresh() {
         count: 5,
         types: ['single_choice'],
         refresh: true,
-        prompt: `你是一个专业的HSK习题生成专家。请根据以下主题生成习题。\n\n主题：{topic}\n题目数量：{count}\n题目类型：{types}\n\n请严格按照以下JSON格式返回，不要包含任何其他内容：\n[\n  {{\n    \"title\": \"题干内容\",\n    \"type\": \"single_choice|multiple_choice|true_false\",\n    \"options\": [\"A. 选项1\", \"B. 选项2\", \"C. 选项3\", \"D. 选项4\"],\n    \"answer\": [\"A\"],\n    \"analysis\": \"题目解析\"\n  }}\n]`
+        prompt: prompt
       })
     })
 

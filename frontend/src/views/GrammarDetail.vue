@@ -265,11 +265,13 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from '../stores/user'
+import { useConfigStore } from '../stores/config'
 import WordPopup from '../components/WordPopup.vue'
 import { useWordPopup } from '../composables/useWordPopup'
 
 const route = useRoute()
 const userStore = useUserStore()
+const configStore = useConfigStore()
 
 // Use the shared word popup composable
 const { showPopup, popupTitle, popupContent, popupTranslation, popupLoading, popupPosition, showPopupAt, loadExplanation, playTTS, translateText } = useWordPopup()
@@ -318,65 +320,11 @@ async function fetchExplanation() {
     "语法内容": grammarItem.value.content
   })
 
-  const prompt = `你是一位资深 HSK 汉语语法教师。请根据以下语法点，为 HSK 学习者生成一份结构化学习卡片。
-
-【语法点】
-{content}
-
-【输出要求】
-严格输出 JSON，不要任何额外文字、markdown 代码块标记或解释。字段如下：
-
-{
-  "grammar_point": "语法内容原文，如'小—、第—'",
-  "category": "类别名称，如'前缀'",
-  "level": "建议HSK等级，取值HSK1-6",
-  "definition": "一句话定义，控制在50字以内，语言通俗",
-  "structure": [
-    "结构公式1，用+连接，如'小 + 名词'",
-    "结构公式2"
-  ],
-  "rules": [
-    {
-      "title": "规则小标题",
-      "desc": "规则说明，80字以内，避免术语堆砌",
-      "example": "配套短句，含拼音和英文翻译"
-    }
-  ],
-  "examples": [
-    {
-      "cn": "中文例句",
-      "pinyin": "带声调拼音",
-      "en": "英文翻译"
-    }
-  ],
-  "common_mistakes": [
-    {
-      "wrong": "错误表达",
-      "right": "正确表达",
-      "reason": "错误原因，40字以内"
-    }
-  ],
-  "practice": [
-    {
-      "type": "填空|改错|造句|选择",
-      "question": "题目描述",
-      "answer": "参考答案"
-    }
-  ],
-  "related_points": ["关联语法点1", "关联语法点2"]
-}
-
-【约束】
-- rules 至少 2 条，不超过 4 条
-- examples 至少 3 条，覆盖不同结构
-- common_mistakes 至少 1 条，不超过 3 条
-- practice 至少 2 题
-- 所有例句必须符合 HSK 对应等级词汇范围
-- 拼音使用带声调符号的标准拼音
-- 不要输出 JSON 以外的任何内容`
+  // Use the grammar prompt from config, replacing {content} placeholder
+  const prompt = configStore.grammarPrompt.replace('{content}', content)
 
   try {
-    const response = await fetch('https://omni-gen.app.ynu.edu.cn/api/v1/explain', {
+    const response = await fetch(configStore.getEndpoint('/api/v1/explain'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -427,65 +375,11 @@ async function fetchExplanationWithRefresh() {
     "语法内容": grammarItem.value.content
   })
 
-  const prompt = `你是一位资深 HSK 汉语语法教师。请根据以下语法点，为 HSK 学习者生成一份结构化学习卡片。
-
-【语法点】
-{content}
-
-【输出要求】
-严格输出 JSON，不要任何额外文字、markdown 代码块标记或解释。字段如下：
-
-{
-  "grammar_point": "语法内容原文，如'小—、第—'",
-  "category": "类别名称，如'前缀'",
-  "level": "建议HSK等级，取值HSK1-6",
-  "definition": "一句话定义，控制在50字以内，语言通俗",
-  "structure": [
-    "结构公式1，用+连接，如'小 + 名词'",
-    "结构公式2"
-  ],
-  "rules": [
-    {
-      "title": "规则小标题",
-      "desc": "规则说明，80字以内，避免术语堆砌",
-      "example": "配套短句，含拼音和英文翻译"
-    }
-  ],
-  "examples": [
-    {
-      "cn": "中文例句",
-      "pinyin": "带声调拼音",
-      "en": "英文翻译"
-    }
-  ],
-  "common_mistakes": [
-    {
-      "wrong": "错误表达",
-      "right": "正确表达",
-      "reason": "错误原因，40字以内"
-    }
-  ],
-  "practice": [
-    {
-      "type": "填空|改错|造句|选择",
-      "question": "题目描述",
-      "answer": "参考答案"
-    }
-  ],
-  "related_points": ["关联语法点1", "关联语法点2"]
-}
-
-【约束】
-- rules 至少 2 条，不超过 4 条
-- examples 至少 3 条，覆盖不同结构
-- common_mistakes 至少 1 条，不超过 3 条
-- practice 至少 2 题
-- 所有例句必须符合 HSK 对应等级词汇范围
-- 拼音使用带声调符号的标准拼音
-- 不要输出 JSON 以外的任何内容`
+  // Use the grammar prompt from config, replacing {content} placeholder
+  const prompt = configStore.grammarPrompt.replace('{content}', content)
 
   try {
-    const response = await fetch('https://omni-gen.app.ynu.edu.cn/api/v1/explain', {
+    const response = await fetch(configStore.getEndpoint('/api/v1/explain'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

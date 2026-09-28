@@ -153,6 +153,40 @@ export const useApiStore = defineStore('api', () => {
     }
   }
 
+  // Fetch all configs
+  async function fetchConfigs() {
+    const response = await fetch(`${API_BASE}/config`)
+    if (!response.ok) throw new Error('Failed to fetch configs')
+    return response.json()
+  }
+
+  // Fetch single config
+  async function fetchConfig(key) {
+    const response = await fetch(`${API_BASE}/config/${encodeURIComponent(key)}`)
+    if (!response.ok) throw new Error('Failed to fetch config')
+    return response.json()
+  }
+
+  // Update config
+  async function updateConfig(key, value) {
+    const response = await fetch(`${API_BASE}/config/${encodeURIComponent(key)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key, value })
+    })
+    if (!response.ok) throw new Error('Failed to update config')
+    return response.json()
+  }
+
+  // Reset config to default
+  async function resetConfig(key) {
+    const response = await fetch(`${API_BASE}/config/${encodeURIComponent(key)}/reset`, {
+      method: 'POST'
+    })
+    if (!response.ok) throw new Error('Failed to reset config')
+    return response.json()
+  }
+
   return {
     fetchPoetry,
     fetchHanziList,
@@ -169,5 +203,9 @@ export const useApiStore = defineStore('api', () => {
     syncFavoritesFromCloud,
     syncVisitedFromCloud,
     addVisitedToCloud,
+    fetchConfigs,
+    fetchConfig,
+    updateConfig,
+    resetConfig,
   }
 })
