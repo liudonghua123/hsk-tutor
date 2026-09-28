@@ -191,7 +191,7 @@ async def get_hanzi_detail(
     """Get detail of a specific hanzi."""
     hanzi = crud.get_hanzi(db, word)
     if not hanzi:
-        return {"error": "Character not found"}
+        raise HTTPException(status_code=404, detail="Character not found")
 
     is_fav = False
     if user:
@@ -258,7 +258,7 @@ async def get_handwritten_detail(
     """Get detail of a specific handwritten character."""
     hanzi = crud.get_handwritten(db, word)
     if not hanzi:
-        return {"error": "Character not found"}
+        raise HTTPException(status_code=404, detail="Character not found")
 
     is_fav = False
     if user:

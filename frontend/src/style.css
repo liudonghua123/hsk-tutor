@@ -351,6 +351,10 @@ body {
   @apply bg-secondary-100 text-secondary-800;
 }
 
+.badge-gray {
+  @apply bg-gray-100 text-gray-600;
+}
+
 /* Card styles */
 .card {
   @apply bg-white rounded-2xl shadow-md p-4 md:p-6;

@@ -122,6 +122,13 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 
+const props = defineProps({
+  char: {
+    type: String,
+    default: null
+  }
+})
+
 const poetry = ref(null)
 const loading = ref(true)
 const expanded = ref(false)
@@ -132,7 +139,11 @@ function toggleExpand() {
 
 onMounted(async () => {
   try {
-    const response = await fetch('https://v2.jinrishici.com/one.json?client=npm-sdk/1.0')
+    let url = 'https://v2.jinrishici.com/one.json?client=npm-sdk/1.0'
+    if (props.char) {
+      url += `&keyword=${encodeURIComponent(props.char)}`
+    }
+    const response = await fetch(url)
     if (response.ok) {
       poetry.value = await response.json()
     }

@@ -308,12 +308,299 @@
       </div>
 
       <!-- Poetry -->
-      <PoetryCard />
+      <PoetryCard :char="hanzi.word" />
     </div>
 
-    <!-- Not Found -->
+    <!-- Character found but not in HSK list -->
+    <div v-else-if="rawWord" class="space-y-5">
+      <!-- Breadcrumb Navigation -->
+      <nav class="flex items-center gap-2 text-sm flex-wrap">
+        <router-link
+          v-for="(crumb, index) in breadcrumbs"
+          :key="index"
+          :to="crumb.path || '#'"
+          class="flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all"
+          :class="[
+            crumb.path
+              ? 'text-gray-600 hover:text-primary-600 hover:bg-primary-50'
+              : 'text-primary-600 font-semibold bg-primary-50 cursor-default',
+            index < breadcrumbs.length - 1 ? '' : 'pointer-events-none'
+          ]"
+        >
+          <span>{{ crumb.name }}</span>
+          <span v-if="index < breadcrumbs.length - 1" class="text-gray-400">/</span>
+        </router-link>
+      </nav>
+
+      <!-- Header -->
+      <div class="flex items-center justify-between">
+        <router-link
+          :to="backPath"
+          class="group flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-gray-50 to-gray-100 hover:from-primary-50 hover:to-primary-100 border border-gray-200 hover:border-primary-200 rounded-xl text-gray-700 hover:text-primary-700 transition-all duration-300 shadow-sm hover:shadow-md"
+        >
+          <svg class="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          </svg>
+          <span class="font-medium">返回 / Back</span>
+        </router-link>
+        <div class="flex items-center gap-3">
+          <span class="badge badge-gray">不在 HSK 范围内</span>
+        </div>
+      </div>
+
+      <!-- Main Character Display -->
+      <div class="grid lg:grid-cols-3 gap-5">
+        <!-- Column 1: Character & Writing Practice -->
+        <div class="space-y-4">
+          <!-- Character Info Card -->
+          <div class="card p-6">
+            <div class="text-center">
+              <span class="text-8xl font-bold text-gray-800">{{ rawWord }}</span>
+              <div class="mt-3 flex items-center justify-center gap-3">
+                <button @click="playAudio" class="flex items-center gap-2 px-4 py-2 bg-primary-50 hover:bg-primary-100 rounded-full text-primary-700 transition-colors">
+                  <svg class="w-5 h-5" :class="{ 'animate-pulse': audioPlaying }" fill="currentColor" viewBox="0 0 24 24">
+                    <path v-if="!audioPlaying" d="M8 5v14l11-7z" />
+                    <path v-else d="M6 4h4v16H6zM14 4h4v16h-4z" />
+                  </svg>
+                  <span class="font-medium">{{ cncharInfo.pinyinLower || '-' }}{{ cncharInfo.toneNum || '' }}</span>
+                </button>
+              </div>
+              <div class="mt-3 flex items-center justify-center gap-2 flex-wrap">
+                <span class="badge badge-gray">-</span>
+              </div>
+            </div>
+
+            <!-- Quick Info -->
+            <div class="grid grid-cols-3 gap-3 mt-6 pt-6 border-t border-gray-100">
+              <div class="text-center">
+                <div class="text-2xl font-bold text-primary-600">{{ cncharInfo.stroke || '-' }}</div>
+                <div class="text-xs text-gray-400">笔画 / Strokes</div>
+              </div>
+              <div class="text-center">
+                <div class="text-2xl font-bold text-purple-600">{{ cncharInfo.radical || '-' }}</div>
+                <div class="text-xs text-gray-400">部首 / Radical</div>
+              </div>
+              <div class="text-center">
+                <div class="text-2xl font-bold text-green-600">{{ cncharInfo.pinyinLower || '' }}{{ cncharInfo.toneNum || '' }}</div>
+                <div class="text-xs text-gray-400">声调 / Tone</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Writing Practice Area -->
+          <div class="card p-6">
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="text-base font-bold text-gray-800 flex items-center gap-2">
+                {{ type === 'write' ? '书写练习 / Writing Practice' : '笔画演示 / Stroke Demo' }}
+              </h2>
+            </div>
+            <div class="flex flex-col items-center">
+              <div id="character-canvas" ref="canvasRef" class="w-full max-w-[280px] aspect-square bg-white rounded-2xl shadow-lg border-2 border-gray-100"></div>
+              <div class="flex gap-2 mt-4">
+                <template v-if="type === 'write'">
+                  <button v-if="!quizStarted" @click="startQuiz" class="btn-primary px-5 py-2 text-sm">开始练习</button>
+                  <button v-else @click="resetQuiz" class="btn-outline px-5 py-2 text-sm">重置</button>
+                </template>
+                <template v-else>
+                  <button @click="showCharacter" class="btn-outline px-4 py-2 text-sm">显示</button>
+                  <button @click="animateCharacter" class="btn-outline px-4 py-2 text-sm">动画</button>
+                </template>
+              </div>
+              <div v-if="quizMessage" class="mt-3 text-center font-medium" :class="quizMessageClass">
+                {{ quizMessage }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Column 2: Stroke Detail & Related -->
+        <div class="space-y-4">
+          <!-- Stroke Detail -->
+          <div class="card p-5">
+            <h3 class="text-base font-bold text-gray-700 mb-4 flex items-center gap-2">
+              <span class="w-1 h-5 bg-gradient-to-b from-primary-500 to-blue-500 rounded-full"></span>
+              笔画详解 / Stroke Detail
+            </h3>
+            <div v-if="cncharInfo.strokeDetail && cncharInfo.strokeDetail.length > 0">
+              <div class="grid grid-cols-2 gap-2">
+                <div
+                  v-for="(stroke, index) in cncharInfo.strokeDetail"
+                  :key="index"
+                  class="p-3 bg-gradient-to-br from-gray-50 to-blue-50 rounded-xl hover:shadow-md transition-shadow cursor-pointer"
+                  @click="highlightStroke(index)"
+                >
+                  <div class="flex items-center justify-between">
+                    <span class="text-xl font-bold text-gray-700">{{ stroke.shape }}</span>
+                    <span class="text-xs bg-primary-100 text-primary-700 px-2 py-0.5 rounded-full">{{ index + 1 }}</span>
+                  </div>
+                  <div class="mt-2 flex flex-wrap gap-1">
+                    <span class="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded">{{ stroke.name }}</span>
+                    <span class="text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded">{{ stroke.type }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div v-else class="text-center py-4 text-gray-400">暂无笔画详情</div>
+          </div>
+
+          <!-- Related Characters -->
+          <div class="card p-5">
+            <h3 class="text-base font-bold text-gray-700 mb-4 flex items-center gap-2">
+              <span class="w-1 h-5 bg-gradient-to-b from-pink-500 to-rose-500 rounded-full"></span>
+              同笔画 / Same Strokes ({{ cncharInfo.sameStrokeChars?.length || 0 }})
+            </h3>
+            <div v-if="cncharInfo.sameStrokeChars && cncharInfo.sameStrokeChars.length > 0" class="flex flex-wrap gap-2">
+              <router-link
+                v-for="char in showAllStrokes ? cncharInfo.sameStrokeChars : cncharInfo.sameStrokeChars.slice(0, 20)"
+                :key="char"
+                :to="`/word/${char}?type=${type}`"
+                class="w-10 h-10 bg-gradient-to-br from-pink-50 to-rose-50 hover:from-pink-100 hover:to-rose-100 rounded-lg flex items-center justify-center text-lg font-medium text-pink-700 transition-colors"
+              >
+                {{ char }}
+              </router-link>
+              <button
+                v-if="cncharInfo.sameStrokeChars.length > 20"
+                @click="showAllStrokes = !showAllStrokes"
+                class="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700"
+              >
+                {{ showAllStrokes ? '收起' : `+${cncharInfo.sameStrokeChars.length - 20} 更多` }}
+              </button>
+            </div>
+            <div v-else class="text-center py-4 text-gray-400">暂无数据</div>
+          </div>
+
+          <!-- Same Pinyin -->
+          <div class="card p-5">
+            <h3 class="text-base font-bold text-gray-700 mb-4 flex items-center gap-2">
+              <span class="w-1 h-5 bg-gradient-to-b from-green-500 to-teal-500 rounded-full"></span>
+              同音字 / Same Pinyin ({{ cncharInfo.samePinyinChars?.length || 0 }})
+            </h3>
+            <div v-if="cncharInfo.samePinyinChars && cncharInfo.samePinyinChars.length > 0" class="flex flex-wrap gap-2">
+              <router-link
+                v-for="char in showAllPinyin ? cncharInfo.samePinyinChars : cncharInfo.samePinyinChars.slice(0, 20)"
+                :key="char"
+                :to="`/word/${char}?type=${type}`"
+                class="w-10 h-10 bg-gradient-to-br from-green-50 to-teal-50 hover:from-green-100 hover:to-teal-100 rounded-lg flex items-center justify-center text-lg font-medium text-green-700 transition-colors"
+              >
+                {{ char }}
+              </router-link>
+              <button
+                v-if="cncharInfo.samePinyinChars.length > 20"
+                @click="showAllPinyin = !showAllPinyin"
+                class="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700"
+              >
+                {{ showAllPinyin ? '收起' : `+${cncharInfo.samePinyinChars.length - 20} 更多` }}
+              </button>
+            </div>
+            <div v-else class="text-center py-4 text-gray-400">暂无数据</div>
+          </div>
+        </div>
+
+        <!-- Column 3: Words, Idioms & More -->
+        <div class="space-y-4">
+          <!-- Words -->
+          <div class="card p-5">
+            <h3 class="text-base font-bold text-gray-700 mb-4 flex items-center gap-2">
+              <span class="w-1 h-5 bg-gradient-to-b from-amber-500 to-orange-500 rounded-full"></span>
+              词语 / Words ({{ cncharInfo.words?.length || 0 }})
+            </h3>
+            <div v-if="cncharInfo.words && cncharInfo.words.length > 0" class="flex flex-wrap gap-2">
+              <span
+                v-for="w in showAllWords ? cncharInfo.words : cncharInfo.words.slice(0, 16)"
+                :key="w"
+                class="word-item px-3 py-1.5 bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 text-amber-700 text-sm rounded-full cursor-pointer transition-colors"
+                @click="showWordPopup(w, $event)"
+              >
+                {{ w }}
+              </span>
+              <button
+                v-if="cncharInfo.words.length > 16"
+                @click="showAllWords = !showAllWords"
+                class="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700"
+              >
+                {{ showAllWords ? '收起' : `+${cncharInfo.words.length - 16} 更多` }}
+              </button>
+            </div>
+            <div v-else class="text-center py-4 text-gray-400">暂无词语</div>
+          </div>
+
+          <!-- Idioms -->
+          <div class="card p-5">
+            <h3 class="text-base font-bold text-gray-700 mb-4 flex items-center gap-2">
+              <span class="w-1 h-5 bg-gradient-to-b from-indigo-500 to-purple-500 rounded-full"></span>
+              成语 / Idioms ({{ cncharInfo.idiom?.length || 0 }})
+            </h3>
+            <div v-if="cncharInfo.idiom && cncharInfo.idiom.length > 0" class="flex flex-wrap gap-2">
+              <span
+                v-for="item in showAllIdioms ? cncharInfo.idiom : cncharInfo.idiom.slice(0, 20)"
+                :key="item"
+                class="idiom-item px-3 py-1.5 bg-gradient-to-r from-indigo-50 to-purple-50 hover:from-indigo-100 hover:to-purple-100 text-indigo-700 text-sm rounded-full cursor-pointer transition-colors"
+                @click="showIdiomPopup(item, $event)"
+              >
+                {{ item }}
+              </span>
+              <button
+                v-if="cncharInfo.idiom.length > 20"
+                @click="showAllIdioms = !showAllIdioms"
+                class="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700"
+              >
+                {{ showAllIdioms ? '收起' : `+${cncharInfo.idiom.length - 20} 更多` }}
+              </button>
+            </div>
+            <div v-else class="text-center py-4 text-gray-400">暂无成语</div>
+          </div>
+
+          <!-- Xiehouyu -->
+          <div class="card p-5">
+            <h3 class="text-base font-bold text-gray-700 mb-4 flex items-center gap-2">
+              <span class="w-1 h-5 bg-gradient-to-b from-cyan-500 to-blue-500 rounded-full"></span>
+              歇后语 / Folk Sayings ({{ cncharInfo.xhy?.length || 0 }})
+            </h3>
+            <div v-if="cncharInfo.xhy && cncharInfo.xhy.length > 0" class="space-y-2 max-h-40 overflow-y-auto">
+              <div
+                v-for="item in cncharInfo.xhy.slice(0, 6)"
+                :key="item"
+                class="xhy-item p-2.5 bg-gradient-to-r from-cyan-50 to-blue-50 hover:from-cyan-100 hover:to-blue-100 rounded-lg cursor-pointer transition-colors text-sm"
+                @click="showXhyPopup(item, $event)"
+              >
+                <span class="text-gray-700">{{ item.split('-')[0] }}</span>
+                <span class="text-gray-400 mx-1">—</span>
+                <span class="text-cyan-700">{{ item.split('-')[1] }}</span>
+              </div>
+            </div>
+            <div v-else class="text-center py-4 text-gray-400">暂无歇后语</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Explanation Section -->
+      <div v-if="rawWord" class="card">
+        <button @click="toggleRawExplanation" class="w-full flex items-center justify-between p-5">
+          <h3 class="text-base font-bold text-gray-700 flex items-center gap-2">
+            <span class="w-1 h-5 bg-gray-400 rounded-full"></span>
+            释义 / Explanation
+          </h3>
+          <svg class="w-5 h-5 text-gray-400 transition-transform" :class="{ 'rotate-180': explanationExpanded }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+        <div v-show="explanationExpanded" class="px-5 pb-5 space-y-3">
+          <div v-if="rawExplanationLoading" class="flex items-center justify-center py-4">
+            <div class="animate-spin rounded-full h-6 w-6 border-2 border-primary-200 border-t-primary-600"></div>
+            <span class="ml-2 text-gray-500">加载中...</span>
+          </div>
+          <p v-else-if="rawExplanation" class="text-gray-600 text-sm leading-relaxed">{{ rawExplanation }}</p>
+          <p v-else class="text-gray-400 text-sm">暂无释义</p>
+        </div>
+      </div>
+
+      <!-- Poetry -->
+      <PoetryCard :char="rawWord" />
+    </div>
+
+    <!-- Not Found (not a valid character) -->
     <div v-else class="text-center py-12">
-      <p class="text-gray-500">Character not found</p>
+      <p class="text-gray-500">Character not found: {{ route.params.word }}</p>
       <router-link to="/read" class="btn-primary mt-4 inline-block">Back to Home</router-link>
     </div>
 
@@ -523,6 +810,7 @@ const configStore = useConfigStore()
 const { showPopup, popupTitle, popupContent, popupTranslation, popupLoading, popupPosition, showPopupAt, loadExplanation, playTTS, translateText } = useWordPopup()
 
 const hanzi = ref(null)
+const rawWord = ref(null)
 const loading = ref(true)
 const canvasRef = ref(null)
 const confettiRef = ref(null)
@@ -545,6 +833,11 @@ const showExplainModal = ref(false)
 const explainTitle = ref('')
 const explainContent = ref('')
 const modalTranslation = ref('')
+
+// Raw word explanation (for non-HSK characters)
+const rawExplanation = ref('')
+const rawMore = ref('')
+const rawExplanationLoading = ref(false)
 
 // Popup state
 
@@ -604,7 +897,9 @@ const breadcrumbs = computed(() => {
       path: `${items[1].path}/${level.value}`
     })
   }
-  items.push({ name: word.value, path: null })
+  // Use rawWord for non-HSK characters, otherwise hanzi.word
+  const displayWord = rawWord.value || hanzi.value?.word
+  items.push({ name: displayWord || word.value, path: null })
   return items
 })
 
@@ -629,7 +924,7 @@ const isCurrentCorrect = computed(() => {
 })
 
 useHead({
-  title: computed(() => hanzi.value ? `${hanzi.value.word} - HSK Tutor` : 'HSK Tutor')
+  title: computed(() => (hanzi.value || rawWord.value) ? `${hanzi.value?.word || rawWord.value} - HSK Tutor` : 'HSK Tutor')
 })
 
 function formatLevel(level) {
@@ -887,6 +1182,14 @@ function nextQuestion() {
 }
 
 
+// Toggle explanation section and load on first expand
+function toggleRawExplanation() {
+  explanationExpanded.value = !explanationExpanded.value
+  if (explanationExpanded.value) {
+    loadRawExplanation()
+  }
+}
+
 // Show word popup
 function showWordPopup(word, event) {
   showPopupAt(word, event)
@@ -980,9 +1283,9 @@ async function toggleFavorite() {
 }
 
 function playAudio() {
-  if (!hanzi.value?.pinyin) return
+  const pinyin = cncharInfo.value?.pinyinLower
+  if (!pinyin) return
 
-  const pinyin = hanzi.value.pinyin.toLowerCase()
   const url = `https://zidian.gushici.net/d/mp3/${encodeURIComponent(pinyin)}.mp3`
 
   if (audio.value) {
@@ -998,14 +1301,16 @@ function playAudio() {
 }
 
 function initWriter() {
-  if (!canvasRef.value || !hanzi.value) return
+  if (!canvasRef.value || (!hanzi.value && !rawWord.value)) return
 
   if (writer.value) {
     writer.value = null
   }
 
+  const displayChar = hanzi.value?.word || rawWord.value
+
   if (type.value === 'write') {
-    writer.value = HanziWriter.create(canvasRef.value, hanzi.value.word, {
+    writer.value = HanziWriter.create(canvasRef.value, displayChar, {
       width: 280,
       height: 280,
       padding: 15,
@@ -1017,7 +1322,7 @@ function initWriter() {
       outlineColor: '#e2e8f0',
     })
   } else {
-    writer.value = HanziWriter.create(canvasRef.value, hanzi.value.word, {
+    writer.value = HanziWriter.create(canvasRef.value, displayChar, {
       width: 280,
       height: 280,
       padding: 15,
@@ -1122,8 +1427,51 @@ function showConfetti() {
   }
 }
 
+// Load cnchar info and explanation for a character
+function loadCncharInfoOnly(char) {
+  loadCncharInfo(char)
+}
+
+// Load explanation from API only when needed (when section expands)
+async function loadRawExplanation() {
+  if (!rawWord.value || rawExplanation.value || rawExplanationLoading.value) return
+
+  rawExplanationLoading.value = true
+  try {
+    const prompt = configStore.wordPrompt
+    const response = await fetch(configStore.getEndpoint('/api/v1/explain'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        content: rawWord.value,
+        prompt: prompt.replace('{content}', rawWord.value)
+      })
+    })
+    if (response.ok) {
+      const text = await response.text()
+      // Try to parse as JSON and use .explained_text
+      try {
+        const json = JSON.parse(text)
+        rawExplanation.value = json.explained_text || json.explanation || json.definition || text
+      } catch {
+        rawExplanation.value = text
+      }
+    }
+  } catch (e) {
+    console.error('Failed to load explanation:', e)
+    rawExplanation.value = '获取释义失败'
+  } finally {
+    rawExplanationLoading.value = false
+  }
+}
+
 async function fetchData() {
   loading.value = true
+  hanzi.value = null
+  rawWord.value = null
+  rawExplanation.value = ''
+  rawMore.value = ''
+
   try {
     if (type.value === 'write') {
       hanzi.value = await apiStore.fetchHandwrittenDetail(word.value, userStore.userId)
@@ -1132,19 +1480,32 @@ async function fetchData() {
     }
 
     // Mark as visited
-    userStore.markVisited(itemType.value, word.value)
-
-    // Load cnchar info
-    if (hanzi.value?.word) {
+    if (hanzi.value) {
+      userStore.markVisited(itemType.value, word.value)
+      // Load cnchar info
       loadCncharInfo(hanzi.value.word)
+      setTimeout(initWriter, 100)
     }
-
-    setTimeout(initWriter, 100)
   } catch (error) {
-    console.error('Failed to fetch hanzi:', error)
-  } finally {
-    loading.value = false
+    console.error('Failed to fetch hanzi from API:', error)
   }
+
+  // If not found in HSK, check if it's a valid Chinese character using cnchar
+  if (!hanzi.value && word.value) {
+    try {
+      const spell = cnchar.spell(word.value)
+      if (spell && spell !== word.value) {
+        // It's a valid Chinese character
+        rawWord.value = word.value
+        loadCncharInfoOnly(word.value)
+        setTimeout(initWriter, 100)
+      }
+    } catch (e) {
+      console.log('Not a valid Chinese character:', word.value)
+    }
+  }
+
+  loading.value = false
 }
 
 onMounted(() => {
