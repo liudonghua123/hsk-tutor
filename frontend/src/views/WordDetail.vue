@@ -962,7 +962,14 @@ async function loadSelectionExplanation() {
   selectionExplanation.value = ''
   try {
     const response = await fetch(configStore.getEndpoint(`/explain/${encodeURIComponent(selectedText.value)}`))
-    selectionExplanation.value = await response.text() || '暂无释义'
+    const text = await response.text() || '暂无释义'
+    // Try to parse as JSON and extract explained_text
+    try {
+      const json = JSON.parse(text)
+      selectionExplanation.value = json.explained_text || json.explanation || json.definition || text
+    } catch {
+      selectionExplanation.value = text
+    }
   } catch (e) {
     selectionExplanation.value = '获取释义失败'
     console.error('Explain error:', e)
@@ -972,11 +979,19 @@ async function loadSelectionExplanation() {
 }
 
 // Handle text selection in explanation area
-function handleTextSelection() {
+function handleTextSelection(event) {
+  // Don't trigger if clicking on a popup, word-item, idiom-item, xhy-item, or grammar-clickable
+  const target = event.target
+  if (target.closest('.fixed.z-\\[9999\\]') ||
+      target.closest('.word-item') || target.closest('.idiom-item') ||
+      target.closest('.xhy-item') || target.closest('.grammar-clickable')) {
+    return
+  }
+
   const selection = window.getSelection()
   const text = selection.toString().trim()
 
-  if (text && text.length > 0) {
+  if (text && text.length > 0 && text.length <= 20) {
     selectedText.value = text
     const range = selection.getRangeAt(0)
     const rect = range.getBoundingClientRect()
@@ -1283,8 +1298,15 @@ async function toggleFavorite() {
 }
 
 function playAudio() {
-  const pinyin = cncharInfo.value?.pinyinLower
+  // Prefer hanzi.value.pinyin which includes tone info (like "ài")
+  // Fall back to cnchar pinyin for non-HSK characters
+  let pinyin = hanzi.value?.pinyin || cncharInfo.value?.pinyinLower
   if (!pinyin) return
+
+  // For cnchar pinyin (without tone), use tonal version with tone number
+  if (!hanzi.value?.pinyin && cncharInfo.value?.tonal) {
+    pinyin = cncharInfo.value.tonal
+  }
 
   const url = `https://zidian.gushici.net/d/mp3/${encodeURIComponent(pinyin)}.mp3`
 

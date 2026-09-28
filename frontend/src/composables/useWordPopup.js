@@ -55,7 +55,14 @@ export function useWordPopup() {
         })
       })
       if (!response.ok) throw new Error('Failed to fetch')
-      return await response.text()
+      const text_response = await response.text()
+      // Try to parse as JSON and extract explained_text
+      try {
+        const json = JSON.parse(text_response)
+        return json.explained_text || json.explanation || json.definition || text_response
+      } catch {
+        return text_response
+      }
     } catch (e) {
       console.error('Explain error:', e)
       return '获取释义失败'

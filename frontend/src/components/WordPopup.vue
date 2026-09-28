@@ -3,7 +3,7 @@
     <Transition name="popup">
       <div v-if="visible" class="fixed inset-0 z-[9998]" @click="$emit('close')">
         <div
-          class="absolute bg-white rounded-xl shadow-2xl border border-gray-200 p-4 z-[9999] max-w-sm w-[280px]"
+          class="absolute bg-white rounded-xl shadow-2xl border border-gray-200 p-4 z-[9999] max-w-sm w-[280px] max-h-[400px] overflow-y-auto"
           :style="{ left: position.x + 'px', top: position.y + 'px' }"
           @click.stop
         >
@@ -32,9 +32,7 @@
           </div>
           <!-- Content -->
           <div v-if="loading" class="text-gray-400 text-sm">加载中...</div>
-          <div v-else-if="content" class="text-gray-600 text-sm leading-relaxed">
-            <p>{{ content }}</p>
-          </div>
+          <div v-else-if="content" class="text-gray-600 text-sm leading-relaxed prose prose-sm max-w-none" v-html="renderedContent"></div>
           <div v-else class="text-gray-400 text-sm">暂无释义</div>
         </div>
       </div>
@@ -43,7 +41,10 @@
 </template>
 
 <script setup>
-defineProps({
+import { computed } from 'vue'
+import { marked } from 'marked'
+
+const props = defineProps({
   visible: { type: Boolean, default: false },
   title: { type: String, default: '' },
   content: { type: String, default: '' },
@@ -53,6 +54,17 @@ defineProps({
 })
 
 defineEmits(['close', 'play-tts', 'translate'])
+
+// Configure marked for safe HTML output
+marked.setOptions({
+  breaks: true,
+  gfm: true
+})
+
+const renderedContent = computed(() => {
+  if (!props.content) return ''
+  return marked.parse(props.content)
+})
 </script>
 
 <style scoped>
