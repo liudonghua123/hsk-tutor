@@ -59,6 +59,7 @@ async def lifespan(app: FastAPI):
         {'key': 'EXPLAIN_GRAMMAR_PROMPT', 'value': EXPLAIN_GRAMMAR_PROMPT, 'description': '语法解释 Prompt'},
         {'key': 'TRANSLATE_PROMPT', 'value': TRANSLATE_PROMPT, 'description': '翻译 Prompt'},
         {'key': 'PRACTISE_PROMPT', 'value': PRACTISE_PROMPT, 'description': '练习题生成 Prompt'},
+        {'key': 'NEEDLE_MODEL', 'value': 'needle2', 'description': 'Needle 本地模型类型 (needle2 或 needle3)'},
     ]
     db = SessionLocal()
     try:

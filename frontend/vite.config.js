@@ -17,6 +17,6 @@ export default defineConfig({
     }
   },
   optimizeDeps: {
-    exclude: ['needle2']
+    exclude: ['needle2', 'needle3']
   }
 })

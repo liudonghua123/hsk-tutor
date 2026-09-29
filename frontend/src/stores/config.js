@@ -4,6 +4,7 @@ import { useApiStore } from './api'
 
 const DEFAULT_CONFIG = {
   OMNI_GEN_BASE_URL: 'https://omni-gen.app.ynu.edu.cn',
+  NEEDLE_MODEL: 'needle2',
   EXPLAIN_WORD_PROMPT: '请解释以下中文词语、成语或歇后语，包括其中文含义、英文翻译、以及在句子中的用法示例。注意只输出解释内容，不要有其他说明：\n\n{content}',
   EXPLAIN_GRAMMAR_PROMPT: `你是一位资深 HSK 汉语语法教师。请根据以下语法点，为 HSK 学习者生成一份结构化学习卡片。
 
@@ -41,6 +42,7 @@ export const useConfigStore = defineStore('config', () => {
 
   // Computed getters for each config
   const baseUrl = computed(() => configsMap.value.OMNI_GEN_BASE_URL || DEFAULT_CONFIG.OMNI_GEN_BASE_URL)
+  const needleModel = computed(() => configsMap.value.NEEDLE_MODEL || DEFAULT_CONFIG.NEEDLE_MODEL)
   const wordPrompt = computed(() => configsMap.value.EXPLAIN_WORD_PROMPT || DEFAULT_CONFIG.EXPLAIN_WORD_PROMPT)
   const grammarPrompt = computed(() => configsMap.value.EXPLAIN_GRAMMAR_PROMPT || DEFAULT_CONFIG.EXPLAIN_GRAMMAR_PROMPT)
   const translatePrompt = computed(() => configsMap.value.TRANSLATE_PROMPT || DEFAULT_CONFIG.TRANSLATE_PROMPT)
@@ -112,6 +114,7 @@ export const useConfigStore = defineStore('config', () => {
     loading,
     initialized,
     baseUrl,
+    needleModel,
     wordPrompt,
     grammarPrompt,
     translatePrompt,

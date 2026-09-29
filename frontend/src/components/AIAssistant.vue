@@ -8,7 +8,7 @@
         </div>
         <div>
           <h3 class="text-lg font-bold text-gray-800">HSK-AI 助手</h3>
-          <p class="text-xs text-gray-500">Needle2 本地模型</p>
+          <p class="text-xs text-gray-500">{{ currentModel }} 本地模型</p>
         </div>
       </div>
       <div class="flex items-center gap-2">
@@ -272,12 +272,14 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { loadModel, isReady, complete, reset } from '../lib/needle2'
+import { useConfigStore } from '../stores/config'
+import { loadModel, isReady, complete, reset } from '../lib/needle'
 import { getToolSchemas, executeTool } from '../lib/tools-hsk'
 import { marked } from 'marked'
 import cnchar from 'cnchar-all'
 
 const router = useRouter()
+const configStore = useConfigStore()
 
 // Configure marked
 marked.setOptions({
@@ -296,6 +298,9 @@ const messages = ref([])
 
 const chatContainer = ref(null)
 const inputRef = ref(null)
+
+// Current needle model type
+const currentModel = computed(() => configStore.needleModel || 'needle2')
 
 // Track if user is actively typing
 const isUserTyping = ref(false)
@@ -482,10 +487,12 @@ function renderMarkdown(content) {
 // Initialize model
 async function initModel() {
   try {
+    const modelType = currentModel.value
+    loadingText.value = `Loading ${modelType}...`
     const schemas = getToolSchemas()
     const toolsJson = JSON.stringify(schemas)
 
-    await loadModel(toolsJson, (msg) => {
+    await loadModel(modelType, toolsJson, (msg) => {
       loadingText.value = msg
       if (msg.includes('Step 1')) loadingProgress.value = 10
       else if (msg.includes('Step 2')) loadingProgress.value = 30
