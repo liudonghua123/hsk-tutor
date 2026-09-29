@@ -16,6 +16,11 @@
       <PoetryCard />
     </div>
 
+    <!-- AI Assistant -->
+    <div class="mb-8">
+      <AIAssistant />
+    </div>
+
     <!-- Learning Modules -->
     <div class="mb-8">
       <h2 class="text-lg font-semibold text-gray-700 mb-4">学习模块 / Modules</h2>
@@ -93,6 +98,7 @@
 <script setup>
 import { computed } from 'vue'
 import PoetryCard from '../components/PoetryCard.vue'
+import AIAssistant from '../components/AIAssistant.vue'
 import { useUserStore } from '../stores/user'
 
 const userStore = useUserStore()
