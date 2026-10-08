@@ -78,7 +78,7 @@
     </div>
 
     <!-- HSK Levels Overview -->
-    <div class="card">
+    <div class="card mb-8">
       <h2 class="text-lg font-semibold text-gray-700 mb-4">HSK 级别概览 / Levels Overview</h2>
       <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
         <router-link
@@ -92,12 +92,18 @@
         </router-link>
       </div>
     </div>
+
+    <!-- Pinyin Annotator -->
+    <div class="mb-8">
+      <PinyinAnnotator />
+    </div>
   </div>
 </template>
 
 <script setup>
 import { computed } from 'vue'
 import PoetryCard from '../components/PoetryCard.vue'
+import PinyinAnnotator from '../components/PinyinAnnotator.vue'
 import AIAssistant from '../components/AIAssistant.vue'
 import { useUserStore } from '../stores/user'
 

@@ -16,6 +16,7 @@
     "hanzi-writer": "^3.5.4",
     "marked": "^18.0.14",
     "pinia": "^2.1.7",
+    "pinyin-pro": "^3.29.4",
     "vue": "^3.4.15",
     "vue-router": "^4.2.5"
   },

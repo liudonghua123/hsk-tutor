@@ -1,27 +1,52 @@
 # CLAUDE.md - HSK Tutor Development Guide
 
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 ## Project Overview
 
-This is an HSK learning application with recognition, writing practice, and grammar modules.
+An HSK (Chinese proficiency test) learning application with recognition (认读), writing practice (书写), and grammar modules. Uses dual-storage: localStorage for unauthenticated users, server-side SQLite for cloud-synced users.
 
 ## Tech Stack
-- Backend: FastAPI + SQLite
-- Frontend: Vue 3 + Vite + Tailwind CSS
-- Character writing: hanzi-writer
-- Audio: zidian.gushici.net
-- Poetry: v2.jinrishici.com
 
-## Data Sources
-- HSK data: `C:\Users\admin\code\other\HSK-3.0\New HSK (2025)\`
-- Word definitions: `C:\Users\admin\code\other\chinese-xinhua\data\word.json`
-- Source files for init: `backend/data/hsk_all_hanzi.json`, `hsk_all_handwritten.json`, `hsk_all_grammar.json`
+- **Backend**: FastAPI + SQLAlchemy + SQLite
+- **Frontend**: Vue 3 + Vite + Tailwind CSS + Pinia
+- **Character rendering**: hanzi-writer for stroke animation
+- **External APIs**: zidian.gushici.net (audio), v2.jinrishici.com (poetry), Omni-Gen (AI explanations)
+
+## Architecture Patterns
+
+### User Identity
+- URL parameter `?user=xxx` identifies users
+- `/api/favorites` and `/api/visited` endpoints require `user` query param
+- Frontend `useUserStore()` handles localStorage for non-authenticated users, syncs to server for cloud users
+
+### Database Models
+- `Hanzi` + `HanziLevel` (many-to-many): 认读 characters
+- `HandwrittenHanzi` + `HandwrittenLevel` (many-to-many): 书写 characters
+- `Grammar`: HSK grammar points
+- `UserFavorite` / `UserVisited`: Per-user tracking
+- `Config`: Key-value application configuration
+
+### AI Integration
+- Omni-Gen API handles word/grammar explanations and translations
+- Prompt templates stored in `Config` table, customizable via `/admin`
+- Placeholders: `{content}`, `{topic}`, `{count}`, `{types}`, `{target_lang}`
 
 ## Key Files
-- `backend/init_db.py` - Database initialization
-- `backend/main.py` - FastAPI app
-- `frontend/src/views/WordDetail.vue` - Character detail with HanziWriter
+
+| File | Purpose |
+|------|---------|
+| `backend/main.py` | FastAPI app, all API endpoints, lifespan (DB init) |
+| `backend/crud.py` | Database operations |
+| `backend/models.py` | SQLAlchemy models |
+| `backend/init_db.py` | Loads HSK data from JSON into SQLite |
+| `frontend/src/stores/user.js` | User identity, favorites/visited state |
+| `frontend/src/stores/api.js` | Backend API calls |
+| `frontend/src/views/WordDetail.vue` | Character detail with HanziWriter |
+| `frontend/src/views/AdminConfig.vue` | Config management UI |
 
 ## Development Commands
+
 ```bash
 # Backend
 cd backend && pip install -r requirements.txt && python init_db.py && uvicorn main:app --reload
@@ -30,36 +55,57 @@ cd backend && pip install -r requirements.txt && python init_db.py && uvicorn ma
 cd frontend && npm install && npm run dev
 ```
 
-## User System
-- URL parameter `?user=xxx` for user identification
-- Local storage for non-authenticated users
-- Server-side for authenticated users
+## Frontend Structure
 
-## Routes
-- `/` - Home
-- `/read` / `/read/:level` - Recognition list
-- `/write` / `/write/:level` - Writing practice list
-- `/grammar` / `/grammar/:level` - Grammar list
-- `/word/:word` - Character detail
-- `/favorites` - User favorites
-- `/admin` - System configuration management
+```
+frontend/src/
+├── stores/           # Pinia stores
+│   ├── user.js       # User identity & favorites
+│   ├── api.js        # Backend API calls
+│   └── config.js     # Config from /api/config
+├── views/            # Page components
+│   ├── Home.vue
+│   ├── ReadList.vue  # 认读 list
+│   ├── WriteList.vue # 书写 list (with HanziWriter)
+│   ├── GrammarList.vue
+│   ├── GrammarDetail.vue
+│   ├── WordDetail.vue
+│   ├── Favorites.vue
+│   └── AdminConfig.vue
+└── router.js         # Vue Router config
+```
 
-## Configuration System
-Configuration is managed via the `/admin` page (password protected) and stored in the `config` database table.
+## API Routes
 
-**Config API endpoints:**
-- `GET /api/config` - Get all config items
-- `GET /api/config/{key}` - Get single config item
-- `PUT /api/config/{key}` - Update config value
-- `POST /api/config/{key}/reset` - Reset to default value
-- `POST /api/config/check-password` - Verify admin password
+- `/api/hanzi[?level=]` - 认读 list
+- `/api/hanzi/{word}` - Character detail
+- `/api/handwritten[?level=]` - 书写 list
+- `/api/grammar[?level=]` - Grammar list
+- `/api/favorites?user=xxx` - User favorites (GET/POST/DELETE)
+- `/api/visited?user=xxx` - User visited (GET/POST)
+- `/api/config` - All configs
+- `/api/config/{key}` - Single config (GET/PUT)
+- `/api/config/{key}/reset` - Reset to default
+- `/api/audio/{pinyin}` - Returns audio URL for pinyin
+- `/api/poetry` - Daily poetry from Jinrishici
 
-**Key configuration items:**
-- `OMNI_GEN_BASE_URL` - Omni-Gen API base URL
-- `EXPLAIN_WORD_PROMPT` - Prompt for word/idiom/xiehouyu explanation (uses `{content}` placeholder)
-- `EXPLAIN_GRAMMAR_PROMPT` - Prompt for grammar explanation (uses `{content}` placeholder)
-- `TRANSLATE_PROMPT` - Prompt for translation (uses `{target_lang}` and `{content}` placeholders)
-- `PRACTISE_PROMPT` - Prompt for practice generation (uses `{topic}`, `{count}`, `{types}` placeholders)
-- `ADMIN_PASSWORD` - Password for accessing /admin page
+## Config System
 
-Config values are loaded into frontend `useConfigStore()` and used by components for API calls.
+Configure via `/admin` page (password: `admin123` by default, change via `ADMIN_PASSWORD` env var).
+
+Key config items:
+- `OMNI_GEN_BASE_URL` - AI API endpoint
+- `EXPLAIN_WORD_PROMPT` - Word explanation template
+- `EXPLAIN_GRAMMAR_PROMPT` - Grammar explanation template
+- `TRANSLATE_PROMPT` - Translation template
+- `PRACTISE_PROMPT` - Practice generation template
+- `NEEDLE_MODEL` - Local model type (`needle2` or `needle3`)
+
+## Data Initialization
+
+Source JSON files in `backend/data/`:
+- `hsk_all_hanzi.json` - 认读 characters
+- `hsk_all_handwritten.json` - 书写 characters
+- `hsk_all_grammar.json` - Grammar points
+
+These are loaded by `init_db.py` from external HSK data paths (see README for paths).
