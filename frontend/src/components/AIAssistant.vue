@@ -697,7 +697,7 @@ async function runAgentLoop(query) {
     await new Promise(r => requestAnimationFrame(r))
     await new Promise(r => setTimeout(r, 50))
 
-    const response = complete(currentQuery)
+    const response = await complete(currentQuery)
     const rtype = response.type
 
     // Remove thinking status

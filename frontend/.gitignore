@@ -60,3 +60,7 @@ Thumbs.db
 
 # TypeScript
 *.tsbuildinfo
+
+# Auto-generated needle worker files
+public/lib/needle2/needle-worker.js
+public/lib/needle3/needle-worker.js
